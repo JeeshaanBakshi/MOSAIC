@@ -15,7 +15,7 @@ export function Header() {
   const role = useRole();
   return (
     <header className="sticky top-0 z-20 border-b border-stone-200 bg-background/90 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4">
         <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
           <Logo /> MOSAIC
         </Link>
@@ -29,7 +29,7 @@ export function Header() {
           {/* CONNECT: replace with "Connect wallet" (issuers, lenders, admin) and a phone login (shopkeepers). */}
           <span className="hidden sm:inline">You are</span>
           <select aria-label="Acting as" value={role} onChange={(e) => setRole(e.target.value as Persona)}
-            className="max-w-[16rem] rounded-xl border border-stone-300 bg-white px-2.5 py-1.5 text-sm font-semibold text-stone-900">
+            className="max-w-[16rem] rounded-xl border border-stone-300 bg-white px-2 py-2 text-sm font-semibold text-stone-900">
             {PERSONA_IDS.map((p) => <option key={p} value={p}>{PERSONAS[p].label}</option>)}
           </select>
         </label>
@@ -45,7 +45,7 @@ function ActiveNavLinks() {
 function NavLinks({ path }: { path: string }) {
   return LINKS.map((l) => (
     <Link key={l.href} href={l.href}
-      className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${path.startsWith(l.href) ? "bg-stone-900 text-white" : "text-stone-600 hover:bg-stone-100"}`}>
+      className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium ${path.startsWith(l.href) ? "bg-stone-900 text-white" : "text-stone-600 hover:bg-stone-100"}`}>
       {l.label}
     </Link>
   ));

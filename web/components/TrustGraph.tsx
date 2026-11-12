@@ -51,7 +51,7 @@ export function TrustGraph({ graph }: { graph: Graph }) {
           <div className="leading-tight">
             <div className="text-[11px] font-medium opacity-70">{KIND_LABEL[n.type] ?? n.type}</div>
             <div className="text-sm font-medium">{n.label}</div>
-            {!isShop && <div className="mt-0.5 text-[11px] capitalize">{n.state === "verified" ? "Verified" : n.state === "failed" ? "Did not pass" : "Unknown"}</div>}
+            {!isShop && <div className="mt-1 text-[11px] capitalize">{n.state === "verified" ? "Verified" : n.state === "failed" ? "Did not pass" : "Unknown"}</div>}
           </div>
         ),
       },

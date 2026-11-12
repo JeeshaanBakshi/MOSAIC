@@ -22,6 +22,18 @@
   --color-clay: #8f4638;
   --color-clay-soft: #f2e7e4;
   --font-sans: var(--font-hanken), system-ui, sans-serif;
+
+  /* The one type scale: 12 / 14 / 16 / 20 / 24 / 32 / 40 / 48 / 56 px. Every text-* class in the app resolves to these. */
+  --text-xs: 0.75rem;   --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;    --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem;   --text-lg--line-height: 1.75rem;
+  --text-xl: 1.5rem;    --text-xl--line-height: 2rem;
+  --text-2xl: 2rem;     --text-2xl--line-height: 2.5rem;
+  --text-3xl: 2.5rem;   --text-3xl--line-height: 3rem;
+  --text-4xl: 3rem;     --text-4xl--line-height: 3.5rem;
+  --text-5xl: 3.5rem;   --text-5xl--line-height: 4rem;
+  --text-6xl: 3.5rem;   --text-6xl--line-height: 4rem;
   --radius-panel: 0.75rem;
   --radius-control: 0.625rem;
 }
@@ -32,7 +44,7 @@ body {
   background: var(--paper);
   color: var(--foreground);
   font-family: var(--font-hanken), system-ui, sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -40,6 +52,10 @@ body {
 }
 
 ::selection { background: var(--color-pine-soft); }
+input, textarea { caret-color: var(--color-pine); }
+a { text-underline-offset: 4px; }
+* { scrollbar-color: var(--color-line) transparent; }
+details > summary::-webkit-details-marker { display: none; }
 
 /* Visible keyboard focus everywhere, in the one accent. */
 :focus-visible { outline: 2px solid var(--color-pine); outline-offset: 2px; border-radius: 4px; }

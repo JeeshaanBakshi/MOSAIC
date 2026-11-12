@@ -71,7 +71,7 @@ export function ApplyToJoin({ role }: { role: RoleId }) {
   if (request.data?.status === "Pending") {
     return (
       <Panel className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4">
           <h2 className="text-lg font-medium tracking-tight">Request sent</h2>
           <Badge state="open">Waiting for the admin</Badge>
         </div>
@@ -88,7 +88,7 @@ export function ApplyToJoin({ role }: { role: RoleId }) {
   if (app.data && !app.data.emailVerified) {
     const latest = inbox.data?.[0];
     return (
-      <Panel className="space-y-5">
+      <Panel className="space-y-6">
         <div>
           <h2 className="text-lg font-medium tracking-tight">Step 2 of 3: verify your email</h2>
           {app.data.emailDelivery === "sent" && <p className="mt-1 max-w-xl text-sm leading-relaxed text-quiet">Code sent to {app.data.email}. Valid 10 minutes, 3 tries.</p>}
@@ -101,7 +101,7 @@ export function ApplyToJoin({ role }: { role: RoleId }) {
             <p className="mt-1">Check the email address, then choose &ldquo;Send a new code&rdquo;.</p>
           </Notice>
         )}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
           <div className="flex-1">
             <Field label="6-digit code">
               <input className={inputClass} inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder="123456" value={code}
@@ -112,8 +112,8 @@ export function ApplyToJoin({ role }: { role: RoleId }) {
           <Button variant="secondary" onClick={resend} disabled={busy !== null}><RotateCw className="size-4" aria-hidden />{busy === "resend" ? "…" : "Send a new code"}</Button>
         </div>
         {app.data.emailDelivery === "not_configured" && latest && (
-          <div className="flex gap-3 rounded-(--radius-control) border border-dashed border-line bg-wash p-4 text-sm">
-            <Mail className="mt-0.5 size-4 shrink-0 text-quiet" aria-hidden />
+          <div className="flex gap-4 rounded-(--radius-control) border border-dashed border-line bg-wash p-4 text-sm">
+            <Mail className="mt-1 size-4 shrink-0 text-quiet" aria-hidden />
             <div>
               <div className="font-medium">Prototype inbox: no email service is set up on this server</div>
               <div className="mt-1">{latest.subject}</div>
@@ -151,7 +151,7 @@ export function ApplyToJoin({ role }: { role: RoleId }) {
       <Notice tone="error">
         <div className="font-medium">The admin rejected your request.</div>
         <p className="mt-1">You can fix what was wrong and apply again.</p>
-        <Button variant="secondary" className="mt-3" onClick={() => setShowForm(true)}>Apply again</Button>
+        <Button variant="secondary" className="mt-4" onClick={() => setShowForm(true)}>Apply again</Button>
       </Notice>
     );
   }
@@ -159,8 +159,8 @@ export function ApplyToJoin({ role }: { role: RoleId }) {
   // ---- the form ----
   const isSupplier = form.kind === "Supplier";
   return (
-    <Panel className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <Panel className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-xl">
           <h2 className="text-lg font-medium tracking-tight">Join the issuer registry</h2>
           <p className="mt-1 text-sm leading-relaxed text-quiet">The admin reviews your details.</p>

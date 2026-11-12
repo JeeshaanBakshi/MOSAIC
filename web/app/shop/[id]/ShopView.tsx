@@ -28,7 +28,7 @@ export function ShopView({ id }: { id: string }) {
       <div className="flex flex-wrap gap-2 text-sm" aria-label="Shops">
         {["shop-1", "shop-2"].map((s) => (
           <Link key={s} href={`/shop/${s}`} aria-current={s === id ? "page" : undefined}
-            className={`rounded-full px-3.5 py-1.5 font-medium ${s === id ? "bg-pine text-white" : "border border-line text-quiet hover:bg-wash hover:text-ink"}`}>{s}</Link>
+            className={`rounded-full px-4 py-2 font-medium ${s === id ? "bg-pine text-white" : "border border-line text-quiet hover:bg-wash hover:text-ink"}`}>{s}</Link>
         ))}
       </div>
 
@@ -53,7 +53,7 @@ export function ShopView({ id }: { id: string }) {
             {items.map((e) => (
               <div key={e.view.credential.id} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <span className="font-medium">{e.view.issuerName}</span>
                     <Badge state={e.view.status === "Valid" ? e.overall : e.view.status} />
                   </div>

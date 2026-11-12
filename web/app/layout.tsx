@@ -22,7 +22,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}><ResetOnLoad /></Suspense>
         <CloudSync />
         <Shell>{children}</Shell>
-        <Toaster position="top-center" icons={{
+        <Toaster position="bottom-right" icons={{
           success: <CircleCheck className="size-4 text-pine" />, error: <CircleAlert className="size-4 text-clay" />,
           info: <Info className="size-4 text-quiet" />, warning: <TriangleAlert className="size-4 text-ink" />, loading: <LoaderCircle className="size-4 animate-spin" />,
         }} toastOptions={{ classNames: { toast: "!rounded-(--radius-control) !border !border-line !bg-surface !text-ink !shadow-none !font-sans", description: "!text-quiet" } }} />

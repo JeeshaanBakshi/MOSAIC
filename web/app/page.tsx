@@ -31,7 +31,7 @@ export default function Home() {
         <div className="divide-y divide-line border-y border-line">
           {DOORS.map(({ role, href, title, body, Icon }) => (
             <RoleLink key={title} role={role} href={href}
-              className="group flex w-full items-center gap-4 py-5 text-left transition-colors hover:bg-wash/60 sm:gap-6 sm:px-3">
+              className="group flex w-full items-center gap-4 py-6 text-left transition-colors hover:bg-wash/60 sm:gap-6 sm:px-4">
               <Icon className="size-6 shrink-0 text-pine" strokeWidth={1.5} aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block text-xl font-light tracking-tight">{title}</span>
@@ -50,7 +50,7 @@ export default function Home() {
             <li key={title}>
               <div className="text-sm text-faint">{i + 1}</div>
               <div className="mt-1 font-medium">{title}</div>
-              <p className="mt-1.5 text-sm leading-relaxed text-quiet">{body}</p>
+              <p className="mt-2 text-sm leading-relaxed text-quiet">{body}</p>
             </li>
           ))}
         </ol>

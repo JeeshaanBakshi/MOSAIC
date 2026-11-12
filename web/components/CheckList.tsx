@@ -23,14 +23,14 @@ export function CheckList({ rows }: { rows: RowLike[] }) {
       {rows.map((r) => {
         const { Icon, cls, word } = ICON[r.result];
         return (
-          <li key={r.label} className="flex gap-3 py-3">
-            <Icon className={`mt-0.5 size-[18px] shrink-0 ${cls}`} strokeWidth={1.75} aria-hidden />
+          <li key={r.label} className="flex gap-4 py-4">
+            <Icon className={`mt-1 size-[18px] shrink-0 ${cls}`} strokeWidth={1.75} aria-hidden />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <span className="text-sm font-medium"><span className="sr-only">{word}: </span>{r.label}</span>
                 {r.source && <span className="text-xs text-faint">{r.source}</span>}
               </div>
-              <p className="mt-0.5 text-sm leading-relaxed text-quiet">{r.reason}</p>
+              <p className="mt-1 text-sm leading-relaxed text-quiet">{r.reason}</p>
             </div>
           </li>
         );

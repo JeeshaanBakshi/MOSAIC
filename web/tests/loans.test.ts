@@ -4,7 +4,7 @@ const ok = (n: string, cond: boolean, x = "") => { cond ? pass++ : fail++; conso
 const rejects = async (n: string, f: () => Promise<unknown>, part = "") => { try { await f(); ok(n, false, "(no error)"); } catch (e) { ok(n, e instanceof ApiError && (e as Error).message.includes(part), (e as Error).message); } };
 const rule = (d: any, id: string) => d.rules.find((r: any) => r.id === id);
 
-import { suggestedAmount, distinctValidIssuers } from "../lib/lender";
+import { suggestedAmount, distinctValidIssuers, distinctVerifiedIssuers } from "../lib/lender";
 (async () => {
   await resetEverything();
   await withState(() => demo.loadDemo());
@@ -78,6 +78,7 @@ import { suggestedAmount, distinctValidIssuers } from "../lib/lender";
     { status: "Valid", credential: { issuer: "B" } }, { status: "Revoked", credential: { issuer: "C" } }, { status: "Expired", credential: { issuer: "D" } },
   ];
   ok("6 credentials from 2 issuers with a valid status -> 2 distinct issuers", distinctValidIssuers(views) === 2);
+  ok("3 issuers, 2 verified (one failed its checks) -> 2", distinctVerifiedIssuers([{ issuer: "A", verified: true }, { issuer: "A", verified: true }, { issuer: "B", verified: true }, { issuer: "C", verified: false }]) === 2);
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error("CRASH", e); process.exit(2); });

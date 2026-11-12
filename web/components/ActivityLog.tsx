@@ -6,27 +6,29 @@ import { ChevronDown } from "lucide-react";
 import { contract } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
 import { formatDate } from "@/lib/format";
+import { Hash } from "@/components/Hash";
 
-export function ActivityLog() {
+export function ActivityLog({ caller, title = "What the contract did" }: { caller?: string; title?: string }) {
   const { data } = useQuery(() => contract.listActivity());
-  const items = data ?? [];
+  const items = (data ?? []).filter((a) => !caller || a.caller === caller); // a caller = show only that account's transactions
   return (
     <details id="logs" className="group scroll-mt-24">
-      <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
+      <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">
         <ChevronDown className="size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />
-        What the contract did ({items.length} transaction{items.length === 1 ? "" : "s"})
+        {title} ({items.length} transaction{items.length === 1 ? "" : "s"})
       </summary>
-      <ol className="mt-3 divide-y divide-line border-y border-line">
+      {items.length === 0 && <p className="mt-2 text-sm text-quiet">Nothing yet. Transactions appear here as soon as you sign one.</p>}
+      <ol className="mt-2 divide-y divide-line border-y border-line">
         {items.map((a) => (
-          <li key={a.n} className="py-3">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <li key={a.n} className="py-4">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className="text-sm font-medium">{a.fn}</span>
               <span className="text-sm text-quiet">signed by {a.caller}</span>
               <span className="ml-auto text-xs text-faint">{formatDate(a.time)}</span>
             </div>
-            <p className="mt-0.5 text-sm">{a.summary}</p>
+            <p className="mt-1 text-sm">{a.summary}</p>
             {a.effects.map((e, i) => <p key={i} className="text-sm text-pine">{e}</p>)}
-            <p className="mt-0.5 truncate text-xs text-faint">Transaction {a.n}, hash {a.hash.slice(0, 20)}… (simulated)</p>
+            <p className="mt-1 text-xs text-quiet">Transaction {a.n}, hash <Hash value={a.hash} label="transaction hash" /> (simulated)</p>
           </li>
         ))}
       </ol>

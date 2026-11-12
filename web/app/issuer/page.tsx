@@ -6,9 +6,11 @@ import { backend, claimHash, contract, type RoleId } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
 import { ISSUER_PERSONAS, PERSONAS, accountOf, setRole, useRole } from "@/lib/session";
 import { usdc, usdcCad, formatDate } from "@/lib/format";
-import { Lock } from "lucide-react";
+import { CircleCheck, CircleDashed, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, Field, Notice, PageTitle, Panel, Rows, Section, Stat, inputClass } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError, Section, Stat, inputClass } from "@/components/ui";
+import { Hash } from "@/components/Hash";
+import { ActivityLog } from "@/components/ActivityLog";
 import { ApplyToJoin } from "@/components/ApplyToJoin";
 import { errorToast, txToast } from "@/components/toast";
 
@@ -118,7 +120,7 @@ export default function IssuerPage() {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
         <div className="space-y-10 self-start">
-        <Panel className="space-y-5">
+        <Panel className="space-y-6">
           <h2 className="text-lg font-medium tracking-tight">Issue a credential</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Shop ID" hint="A shop is just a name here. It never signs or pays.">
@@ -137,20 +139,20 @@ export default function IssuerPage() {
           <Field label="Summary (public)" hint="A one-line conclusion. Never put raw data or personal details here.">
             <textarea className={inputClass} rows={2} value={summary} onChange={(e) => setEdited(e.target.value)} />
           </Field>
-          <p className="flex gap-3 border-l-2 border-pine pl-4 text-sm leading-relaxed text-quiet">
-            <Lock className="mt-0.5 size-4 shrink-0 text-pine" aria-hidden />
+          <p className="flex gap-4 rounded-(--radius-control) bg-wash px-4 py-4 text-sm leading-relaxed text-quiet">
+            <Lock className="mt-1 size-4 shrink-0 text-pine" aria-hidden />
             <span>Signing locks <b className="font-medium text-ink">{stake ? usdc(stake) : "30 USDC"}</b> (a digital US dollar{stake ? `, about ${usdcCad(stake)}` : ""}) in the contract until this credential expires, after 90 days. You get it back unless a dispute against you is upheld.</span>
           </p>
-          <Button onClick={issue} disabled={busy !== null || !summary || !shopId} className="w-full">
+          <Button onClick={issue} disabled={busy !== null || !summary || !shopId} loading={busy === "issue"} className="w-full">
             {busy === "issue" ? "Signing…" : `Sign and issue, locking ${stake ? usdc(stake) : "the stake"}`}
           </Button>
         </Panel>
 
-        <Panel className="space-y-5">
+        <Panel className="space-y-6">
           <h2 className="text-lg font-medium tracking-tight">Add evidence for {shopId || "a shop"}</h2>
           <p className="text-sm text-quiet">Only claims backed by evidence earn fees.</p>
           <Field label={kind === "PaymentProvider" ? "Payments settled to the shop each month (₹)" : "Shop's purchases from you each month (₹)"}>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               {MONTH_LABELS.map((m, i) => (
                 <label key={m} className="text-xs text-quiet">{m}
                   <input className={`${inputClass} mt-1`} inputMode="numeric" value={months[i]} placeholder="0"
@@ -163,41 +165,58 @@ export default function IssuerPage() {
             <input className={inputClass} inputMode="numeric" value={refund} placeholder="0" onChange={(e) => setRefund(digits(e.target.value))} />
           </Field>
           {evidence.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(evidence.data.months.reduce((t, n) => t + n, 0) / 6))} a month on average.</p>}
-          <Button onClick={saveEvidence} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data} className="w-full">
+          <Button onClick={saveEvidence} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data} loading={busy === "evidence"} className="w-full">
             {busy === "evidence" ? "Saving…" : "Save evidence"}
           </Button>
         </Panel>
         </div>
 
         <Section title="Your credentials" className="self-start">
-          {(mine.data ?? []).length === 0 && <p className="text-sm text-quiet">None yet.</p>}
-          <Rows>
+          {mine.error && <QueryError what="your credentials" onRetry={mine.retry} />}
+          {!mine.error && !mine.loading && (mine.data ?? []).length === 0 && (
+            <EmptyState title="No credentials yet">
+              Fill in the form to vouch for your first shop. Each credential locks {stake ? usdc(stake) : "a stake"} until it expires.
+            </EmptyState>
+          )}
+          <div className="space-y-4">
             {(mine.data ?? []).map((v) => {
               const c = v.credential;
               const expired = now.data !== undefined && now.data >= c.expiresAt;
               return (
-                <div key={c.id} className="space-y-2 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">{c.shopId}, credential {c.id}</span>
+                <article key={c.id} className="space-y-4 rounded-(--radius-panel) border border-line bg-surface p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-base font-medium">{c.shopId}</h3>
                     <Badge state={v.status} />
                   </div>
-                  <p className="text-sm">&ldquo;{c.summary}&rdquo;</p>
-                  <p className="text-sm text-quiet">Expires {formatDate(c.expiresAt)}. Stake locked: {usdc(c.stake)}.</p>
-                  {v.status === "Valid" && <p className={`text-sm ${c.passed ? "text-pine" : "text-quiet"}`}>{c.passed ? "Earning fees." : "Not earning yet. Add evidence for this shop."}</p>}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {!c.revoked && <Button variant="secondary" disabled={busy !== null} onClick={() => revoke(c.id)}>{busy === `revoke-${c.id}` ? "…" : "Revoke"}</Button>}
-                    <Button variant="secondary" disabled={busy !== null || c.stake === 0}
+                  <p className="text-base">&ldquo;{c.summary}&rdquo;</p>
+                  {v.status === "Valid" && (
+                    <p className={`flex items-center gap-2 text-sm ${c.passed ? "text-pine" : "text-quiet"}`}>
+                      {c.passed ? <CircleCheck className="size-4 shrink-0" aria-hidden /> : <CircleDashed className="size-4 shrink-0" aria-hidden />}
+                      {c.passed ? "Earning fees." : "Not earning yet. Add evidence for this shop."}
+                    </p>
+                  )}
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <dt className="text-quiet">Credential</dt><dd className="text-right">#{c.id}</dd>
+                    <dt className="text-quiet">Expires</dt><dd className="text-right">{formatDate(c.expiresAt)}</dd>
+                    <dt className="text-quiet">Stake locked</dt><dd className="text-right">{usdc(c.stake)}</dd>
+                    <dt className="text-quiet">Evidence hash</dt><dd className="text-right"><Hash value={c.claimHash} label="evidence hash" /></dd>
+                  </dl>
+                  <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row">
+                    {!c.revoked && <Button variant="secondary" disabled={busy !== null} loading={busy === `revoke-${c.id}`} onClick={() => revoke(c.id)}>Revoke</Button>}
+                    <Button variant="secondary" disabled={busy !== null || c.stake === 0} loading={busy === `release-${c.id}`}
                       title={expired ? undefined : "The stake stays locked until the credential expires. Move the date forward from the Admin test tools."}
                       onClick={() => release(c.id)}>
-                      {busy === `release-${c.id}` ? "…" : "Release stake"}
+                      Release stake
                     </Button>
                   </div>
-                </div>
+                </article>
               );
             })}
-          </Rows>
+          </div>
         </Section>
       </div>
+
+      {acct && <ActivityLog caller={acct.name} title="Your transactions" />}
     </div>
   );
 }

@@ -42,7 +42,7 @@ export function TestTools() {
           <RotateCcw className="size-4" aria-hidden />Reset all data
         </Button>
       </div>
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-quiet">
+      <p className="mt-4 max-w-xl text-sm leading-relaxed text-quiet">
         Moving the date shows credentials expiring and stakes being released. Reset and Load demo change the shared cloud data for everyone.
       </p>
       <div className="mt-6">

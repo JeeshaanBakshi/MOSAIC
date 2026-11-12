@@ -54,14 +54,14 @@ export function Shell({ children }: { children: ReactNode }) {
         </aside>
       )}
 
-      <main className="mx-auto w-full max-w-[68rem] px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-14">{children}</main>
+      <main className="mx-auto w-full max-w-[68rem] px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-14">{children}</main>
     </div>
   );
 }
 
 function Wordmark() {
   return (
-    <Link href="/" className="flex items-center gap-2.5 text-ink">
+    <Link href="/" className="flex items-center gap-2 text-ink">
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
         <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#2e5a4d" />
         <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#2e5a4d" opacity=".55" />
@@ -76,7 +76,7 @@ function Wordmark() {
 function Rail({ compact = false, onNavigate }: { compact?: boolean; onNavigate: () => void }) {
   const role = useRole();
   return (
-    <div className={`flex h-full flex-col ${compact ? "gap-6 px-5 py-5 sm:px-6" : "gap-10 px-6 py-8"}`}>
+    <div className={`flex h-full flex-col ${compact ? "gap-6 px-6 py-6 sm:px-6" : "gap-10 px-6 py-8"}`}>
       {!compact && <Wordmark />}
       <nav aria-label="Main" className="flex flex-col gap-1">
         <Suspense fallback={<NavLinks path="" onNavigate={onNavigate} />}>
@@ -87,7 +87,7 @@ function Rail({ compact = false, onNavigate }: { compact?: boolean; onNavigate: 
         <label className="block">
           <span className="text-sm font-medium">You are</span>
           <select aria-label="You are" value={role} onChange={(e) => setRole(e.target.value as Persona)}
-            className="mt-1.5 block min-h-10 w-full rounded-(--radius-control) border border-line bg-surface px-3 text-sm text-ink focus:border-pine focus:outline-none focus:ring-2 focus:ring-pine/20">
+            className="mt-2 block min-h-10 w-full rounded-(--radius-control) border border-line bg-surface px-4 text-sm text-ink focus:border-pine focus:outline-none focus:ring-2 focus:ring-pine/20">
             {PERSONA_GROUPS.map((g) => (
               <optgroup key={g.kind} label={g.label}>
                 {PERSONA_IDS.filter((p) => PERSONAS[p].kind === g.kind).map((p) => <option key={p} value={p}>{PERSONAS[p].name}</option>)}
@@ -96,7 +96,7 @@ function Rail({ compact = false, onNavigate }: { compact?: boolean; onNavigate: 
           </select>
         </label>
         <p className="flex gap-2 text-xs leading-relaxed text-quiet">
-          <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <Info className="mt-1 size-3.5 shrink-0" aria-hidden />
           Prototype. The blockchain is simulated, the money is test USDC, and all data is made up.
         </p>
       </div>
@@ -113,7 +113,7 @@ function NavLinks({ path, onNavigate }: { path: string; onNavigate: () => void }
     const active = path.startsWith(href) || (href === "/my-shop" && path.startsWith("/shop/"));
     return (
       <Link key={href} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined}
-        className={`flex min-h-10 items-center gap-3 rounded-(--radius-control) px-3 text-sm font-medium transition-colors ${active ? "bg-pine-soft text-pine" : "text-quiet hover:bg-wash hover:text-ink"}`}>
+        className={`flex min-h-10 items-center gap-4 rounded-(--radius-control) px-4 text-sm font-medium transition-colors ${active ? "bg-pine-soft text-pine" : "text-quiet hover:bg-wash hover:text-ink"}`}>
         <Icon className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
         {label}
       </Link>

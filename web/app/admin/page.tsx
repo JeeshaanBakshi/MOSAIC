@@ -66,9 +66,9 @@ export default function AdminPage() {
         Approve issuers and settle disputes. Two upheld disputes suspend an issuer.
       </PageTitle>
 
-      <nav aria-label="On this page" className="-mx-5 flex gap-1 overflow-x-auto border-b border-line px-5 sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0">
+      <nav aria-label="On this page" className="-mx-6 flex gap-1 overflow-x-auto border-b border-line px-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0">
         {[["#applications", "Applications"], ["#issuers", "Issuers"], ["#shops", "Shop checks"], ["#disputes", "Disputes"], ["#tools", "Test tools"], ["#logs", "Logs"]].map(([href, label]) => (
-          <a key={href} href={href} className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-medium text-quiet hover:border-pine hover:text-ink">{label}</a>
+          <a key={href} href={href} className="shrink-0 border-b-2 border-transparent px-4 py-4 text-sm font-medium text-quiet hover:border-pine hover:text-ink">{label}</a>
         ))}
       </nav>
 
@@ -101,7 +101,7 @@ export default function AdminPage() {
               <tbody className="divide-y divide-line">
                 {issuers.data!.map((i) => (
                   <tr key={i.address}>
-                    <td className="py-3 pr-4"><div className="font-medium">{i.name}</div><div className="text-xs text-faint">{short(i.address)}</div></td>
+                    <td className="py-4 pr-4"><div className="font-medium">{i.name}</div><div className="text-xs text-faint">{short(i.address)}</div></td>
                     <td className="pr-4">{i.kind === "Supplier" ? "Supplier" : "Payment app"}</td>
                     <td className="pr-4 tabular-nums">{i.upheldClaims} of 2</td>
                     <td className="pr-4"><Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge></td>
@@ -124,9 +124,9 @@ export default function AdminPage() {
           {(disputes.data ?? []).map((d) => {
             const c = credentials.data?.find((x) => x.credential.id === d.credentialId);
             return (
-              <div key={d.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div key={d.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <span className="font-medium">Dispute {d.id}</span>
                     {d.resolved ? <Badge state={d.upheld ? "failed" : "pass"}>{d.upheld ? "Upheld" : "Rejected"}</Badge> : <Badge state="open">Open</Badge>}
                   </div>
@@ -150,7 +150,7 @@ export default function AdminPage() {
 
       <TestTools />
 
-      <Section id="logs" title="Logs" className="space-y-5">
+      <Section id="logs" title="Logs" className="space-y-6">
         <ActivityLog />
         <SystemLog />
       </Section>
@@ -168,13 +168,13 @@ function OutcomePanel({ o }: { o: Outcome }) {
   return (
     <Panel>
       <h2 className="text-lg font-medium tracking-tight">Dispute {o.id} {o.upheld ? "upheld: stake slashed" : "rejected: nothing moved"}</h2>
-      <div className="relative mt-3 overflow-x-auto">
+      <div className="relative mt-4 overflow-x-auto">
         <table className="w-full min-w-[24rem] text-left text-sm">
           <thead className="text-quiet"><tr className="border-b border-line"><th scope="col" className="py-2 font-medium"><span className="sr-only">Item</span></th><th scope="col" className="font-medium">Before</th><th scope="col" className="font-medium">After</th></tr></thead>
           <tbody className="divide-y divide-line">
             {rows.map(([label, b, a]) => (
               <tr key={label}>
-                <td className="py-2.5 pr-4 font-medium">{label}</td>
+                <td className="py-2 pr-4 font-medium">{label}</td>
                 <td className="pr-4 tabular-nums text-quiet">{b}</td>
                 <td className={`tabular-nums ${a !== b ? "font-medium text-clay" : ""}`}>{a}</td>
               </tr>
@@ -182,7 +182,7 @@ function OutcomePanel({ o }: { o: Outcome }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 truncate text-xs text-faint">Transaction hash {o.hash.slice(0, 20)}… (simulated)</p>
+      <p className="mt-4 truncate text-xs text-faint">Transaction hash {o.hash.slice(0, 20)}… (simulated)</p>
     </Panel>
   );
 }

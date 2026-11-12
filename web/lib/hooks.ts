@@ -16,6 +16,7 @@ export function useStoreVersion() {
 export function useQuery<T>(fn: () => Promise<T>, deps: readonly unknown[] = []) {
   const version = useStoreVersion();
   const [state, setState] = useState<{ data?: T; error?: Error }>({});
+  const [attempt, setAttempt] = useState(0); // bump to run the query again (the "Try again" button)
 
   useEffect(() => {
     let cancelled = false; // ignore answers that arrive after we've moved on
@@ -25,7 +26,7 @@ export function useQuery<T>(fn: () => Promise<T>, deps: readonly unknown[] = [])
     );
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, ...deps]);
+  }, [version, attempt, ...deps]);
 
-  return { data: state.data, error: state.error, loading: state.data === undefined && !state.error };
+  return { data: state.data, error: state.error, loading: state.data === undefined && !state.error, retry: () => { setState({}); setAttempt((a) => a + 1); } };
 }

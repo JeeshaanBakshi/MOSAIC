@@ -10,13 +10,14 @@ import { ACCOUNTS, backend, contract, nameOf, rs, type LoanOutcome, type Payout 
 import { useQuery } from "@/lib/hooks";
 import { PERSONAS, accountOf, setRole, useRole } from "@/lib/session";
 import { loadEvidence, type EvidenceItem } from "@/lib/checks";
-import { distinctValidIssuers, suggestedAmount } from "@/lib/lender";
+import { distinctValidIssuers, distinctVerifiedIssuers, suggestedAmount } from "@/lib/lender";
 import { cad, formatDate, usdc } from "@/lib/format";
 
 /** An amount in rupees with its rough Canadian-dollar equivalent. */
 const money = (inr: number) => `${rs(inr)} (about ${cad(inr)})`;
-import { Badge, Button, Field, Notice, PageTitle, Panel, Rows, Section, Stat, inputClass } from "@/components/ui";
-import { CheckList } from "@/components/CheckList";
+import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError, Rows, Section, Stat, inputClass } from "@/components/ui";
+import { Hash } from "@/components/Hash";
+import { CheckList, type RowLike } from "@/components/CheckList";
 import { errorToast, txToast } from "@/components/toast";
 import { toast } from "sonner";
 
@@ -63,6 +64,11 @@ export function LenderView() {
   const items = evidence.data ?? [];
   // Count voices, not paperwork: several credentials from the same issuer are still one issuer.
   const issuerCount = distinctValidIssuers(items.map((e) => e.view));
+  const verifiedCount = distinctVerifiedIssuers(items.map((e) => ({ issuer: e.view.credential.issuer, verified: e.view.status === "Valid" && e.overall === "verified" })));
+  const rules: RowLike[] = (decision.data?.rules ?? []).map((r) => ({ label: r.label, result: r.result, reason: r.reason }));
+  const passedRules = rules.filter((r) => r.result === "pass");
+  const failedRules = rules.filter((r) => r.result === "fail");
+  const missingRules = rules.filter((r) => r.result === "unknown");
   const beyond = !!decision.data && (decision.data.outcome !== "approve" || approveAmount > decision.data.limitInr);
 
   async function run(key: string, f: () => Promise<void>) {
@@ -111,10 +117,13 @@ export function LenderView() {
       )}
 
       <Section title={`Waiting for a decision (${waiting.length})`}>
-        {waiting.length === 0 && <p className="text-sm text-quiet">No requests waiting.</p>}
+        {loans.error && <QueryError what="loan requests" onRetry={loans.retry} />}
+        {!loans.error && waiting.length === 0 && (
+          <EmptyState title="No loan requests waiting">Shops ask for loans from their My shop page.</EmptyState>
+        )}
         <Rows>
           {waiting.map((l) => (
-            <div key={l.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={l.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="font-medium">{l.shopName} asks for {money(l.amountInr)} over {l.months} months</div>
                 <p className="text-sm text-quiet">For &ldquo;{l.purpose}&rdquo;. Asked on {formatDate(l.requestedAt)}.</p>
@@ -126,36 +135,54 @@ export function LenderView() {
       </Section>
 
       {loan && (
-        <Panel className="space-y-6">
+        <Panel className="space-y-8">
           <div>
             <p className="text-sm text-quiet">Reviewing</p>
-            <h2 className="text-2xl font-light tracking-tight">{loan.shopName}: {money(loan.amountInr)} over {loan.months} months</h2>
+            <h2 className="text-xl font-light tracking-tight">{loan.shopName}: {money(loan.amountInr)} over {loan.months} months</h2>
           </div>
           {!checked ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-quiet">Pay {fee ? usdc(fee) : "1 USDC"} to see the evidence and the recommendation.</p>
-              <Button onClick={() => verifyShop(loan.shopId)} disabled={busy !== null || !me}>{busy === "verify" ? "Paying and checking…" : `Check the shop (${fee ? usdc(fee) : "1 USDC"})`}</Button>
+              <Button onClick={() => verifyShop(loan.shopId)} disabled={busy !== null || !me} loading={busy === "verify"}>
+                {busy === "verify" ? "Paying and checking…" : `Check the shop (${fee ? usdc(fee) : "1 USDC"})`}
+              </Button>
             </div>
+          ) : decision.error ? (
+            <QueryError what="the recommendation" onRetry={decision.retry} />
           ) : !decision.data ? (
-            <p className="text-sm text-quiet">Working out the recommendation…</p>
+            <p className="text-sm text-quiet" role="status">Working out the recommendation…</p>
           ) : (
             <>
-              <div>
-                <Badge state={OUTCOME[decision.data.outcome].state}>{OUTCOME[decision.data.outcome].label}</Badge>
-                <p className="mt-2 text-lg font-light leading-snug">{decision.data.summary}</p>
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <Badge state={OUTCOME[decision.data.outcome].state}>{OUTCOME[decision.data.outcome].label}</Badge>
+                  <span className="text-sm font-medium">{passedRules.length} of {decision.data.rules.length} checks passed</span>
+                </div>
+                <p className="text-lg leading-snug">{decision.data.summary}</p>
               </div>
-              <CheckList rows={decision.data.rules.map((r) => ({ label: r.label, result: r.result, reason: r.reason }))} />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Approve (₹)" hint={suggested > 0 ? `They asked for ${money(loan.amountInr)}. Suggested: ${money(suggested)}.` : `They asked for ${money(loan.amountInr)}. No suggestion: not enough verified evidence.`}>
-                  <input className={inputClass} inputMode="numeric" placeholder="Enter an amount" value={approveAmount ? String(approveAmount) : ""} onChange={(e) => setAmount(Number(e.target.value.replace(/\D/g, "").slice(0, 9)))} />
-                </Field>
-                <Field label="Note" hint={beyond ? "Required, because you are going beyond the recommendation." : "Optional."}>
-                  <textarea className={inputClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="For example, visited the shop and known to us for 3 years." />
-                </Field>
+
+              <div className="space-y-8">
+                <CheckGroup title="Failed" rows={failedRules} />
+                <CheckGroup title="Missing" note="Unknown is not bad: there is just no evidence yet." rows={missingRules} />
+                <CheckGroup title="Passed" rows={passedRules} />
               </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="secondary" onClick={() => decide(false)} disabled={busy !== null}>{busy === "decline" ? "…" : "Decline"}</Button>
-                <Button onClick={() => decide(true)} disabled={busy !== null || !approveAmount}>{busy === "approve" ? "Saving…" : `Approve ${rs(approveAmount || 0)}`}</Button>
+
+              <div className="space-y-6 rounded-(--radius-panel) bg-wash p-6">
+                <h3 className="text-base font-medium">Your decision</h3>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field label="Approve (₹)" hint={suggested > 0 ? `They asked for ${money(loan.amountInr)}. Suggested: ${money(suggested)}.` : `They asked for ${money(loan.amountInr)}. No suggestion: not enough verified evidence.`}>
+                    <input className={inputClass} inputMode="numeric" placeholder="Enter an amount" value={approveAmount ? String(approveAmount) : ""} onChange={(e) => setAmount(Number(e.target.value.replace(/\D/g, "").slice(0, 9)))} />
+                  </Field>
+                  <Field label={beyond ? "Note (required)" : "Note (optional)"} hint={beyond ? "Say why you are going beyond the recommendation." : undefined}>
+                    <textarea className={inputClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="For example, visited the shop and known to us for 3 years." />
+                  </Field>
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button variant="secondary" onClick={() => decide(false)} disabled={busy !== null} loading={busy === "decline"}>Decline</Button>
+                  <Button onClick={() => decide(true)} disabled={busy !== null || !approveAmount || (beyond && !note.trim())} loading={busy === "approve"}>
+                    {busy === "approve" ? "Saving…" : `Approve ${rs(approveAmount || 0)}`}
+                  </Button>
+                </div>
               </div>
             </>
           )}
@@ -166,7 +193,7 @@ export function LenderView() {
         <Section title="Recent decisions">
           <Rows>
             {decided.map((l) => (
-              <div key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-sm">
+              <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-4 text-sm">
                 <Badge state={l.status === "approved" ? "pass" : "fail"}>{l.status === "approved" ? `Approved ${rs(l.approvedInr ?? 0)}` : "Declined"}</Badge>
                 <span className="font-medium">{l.shopName}</span>
                 <span className="text-quiet">asked {rs(l.amountInr)}{l.lender ? `, decided by ${nameOf(l.lender)}` : ""}{l.recommendation && `, checks said ${l.recommendation.replace(/_/g, " ")}`}{l.note && `, note: ${l.note}`}</span>
@@ -181,14 +208,14 @@ export function LenderView() {
           <Search className="size-[18px] text-quiet" aria-hidden />Check any shop
           <ChevronDown className="ml-auto size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />
         </summary>
-        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end">
           <div className="flex-1">
             <Field label="Shop ID" hint="Try shop-1 or shop-2.">
               <input className={inputClass} list="shops" value={shopId} onChange={(e) => setShopId(e.target.value.trim())} />
               <datalist id="shops">{(shops.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</datalist>
             </Field>
           </div>
-          <Button onClick={() => verifyShop(shopId)} disabled={busy !== null || !shopId || !me} className="sm:w-56">
+          <Button onClick={() => verifyShop(shopId)} disabled={busy !== null || !shopId || !me} loading={busy === "verify"} className="sm:w-56">
             {busy === "verify" ? "Paying and checking…" : `Verify (${fee ? usdc(fee) : "1 USDC"})`}
           </Button>
         </div>
@@ -196,39 +223,39 @@ export function LenderView() {
       <p className="-mt-8 text-sm text-quiet">Paying from {PERSONAS[role].label}. Balance {balance.data === undefined ? "…" : usdc(balance.data)}.</p>
 
       {verified && (
-        <section className="space-y-8" aria-label={`Evidence for ${verified.shopId}`}>
-          <div className="grid gap-8 border-t border-line pt-8 md:grid-cols-2">
+        <section className="space-y-8 border-t border-line pt-8" aria-label={`Evidence for ${verified.shopId}`}>
+          <h2 className="text-lg font-medium tracking-tight">Evidence for {verified.shopId}</h2>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Stat label="Distinct issuers" value={`${verifiedCount} of ${issuerCount} verified`} hint="Several credentials from one issuer count once." />
             <div>
-              <Stat label={`Lender checks on ${verified.shopId}, last 30 days`} value={String(stacking.data ?? "…")} />
-              <div className="mt-2 flex items-center gap-2">
-                {(stacking.data ?? 0) >= STACKING_ALERT ? <Badge state="fail">Possible loan stacking</Badge> : <Badge state="pass">Normal</Badge>}
-              </div>
-              <p className="mt-3 max-w-sm text-sm leading-relaxed text-quiet">Many checks at once can mean the shop is borrowing from several lenders.</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium">Where your fee went</h3>
-              <Rows className="mt-2">
-                {verified.payouts.map((p) => (
-                  <div key={p.to} className="flex justify-between gap-4 py-2 text-sm">
-                    <span className={p.to === ACCOUNTS.admin.address ? "text-quiet" : ""}>{p.to === ACCOUNTS.admin.address ? "Mosaic platform" : nameOf(p.to)}</span>
-                    <span className="tabular-nums">{usdc(p.amount)}</span>
-                  </div>
-                ))}
-              </Rows>
-              <p className="mt-2 text-sm leading-relaxed text-quiet">70% goes to issuers whose claims passed the checks.</p>
-              <p className="mt-1 truncate text-xs text-faint">Transaction hash {verified.hash.slice(0, 20)}… (simulated)</p>
+              <Stat label="Lender checks, last 30 days" value={String(stacking.data ?? "…")} hint="Many at once can mean the shop is borrowing from several lenders." />
+              <div className="mt-2">{(stacking.data ?? 0) >= STACKING_ALERT ? <Badge state="fail">Possible loan stacking</Badge> : <Badge state="pass">Normal</Badge>}</div>
             </div>
           </div>
 
-          {!evidence.loading && items.length === 0 && (
-            <p className="text-sm text-quiet">No credentials yet. Unknown, not bad.</p>
+          <details className="group">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">
+              <ChevronDown className="size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />Where your fee went
+            </summary>
+            <Rows className="mt-2">
+              {verified.payouts.map((p) => (
+                <div key={p.to} className="flex justify-between gap-4 py-2 text-sm">
+                  <span className={p.to === ACCOUNTS.admin.address ? "text-quiet" : ""}>{p.to === ACCOUNTS.admin.address ? "Mosaic platform" : nameOf(p.to)}</span>
+                  <span className="tabular-nums">{usdc(p.amount)}</span>
+                </div>
+              ))}
+            </Rows>
+            <p className="mt-2 text-sm text-quiet">70% goes to issuers whose claims passed the checks.</p>
+            <p className="mt-2 text-xs text-quiet">Transaction <Hash value={verified.hash} label="transaction hash" /> (simulated)</p>
+          </details>
+
+          {evidence.error && <QueryError what="the evidence" onRetry={evidence.retry} />}
+          {!evidence.error && !evidence.loading && items.length === 0 && (
+            <EmptyState title={`No credentials for ${verified.shopId}`}>That means unknown, not bad: this shop has no evidence yet. Ask its supplier or payment app to vouch.</EmptyState>
           )}
 
-          {items.length > 0 && (
-            <Stat label={`Distinct issuers vouching for ${verified.shopId}`} value={String(issuerCount)} hint="Counted once per issuer." />
-          )}
-
-          <div className="space-y-10">
+          <div className="space-y-6">
             {items.map((e) => {
               const id = e.view.credential.id;
               const d = (disputes.data ?? []).find((x) => x.credentialId === id);
@@ -237,6 +264,17 @@ export function LenderView() {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+function CheckGroup({ title, note, rows }: { title: string; note?: string; rows: RowLike[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-sm font-medium">{title} ({rows.length})</h3>
+      {note && <p className="mt-1 text-sm text-quiet">{note}</p>}
+      <div className="mt-2"><CheckList rows={rows} /></div>
     </div>
   );
 }
@@ -251,19 +289,20 @@ function CredentialBlock({ item, dispute, busy, anyBusy, onDispute }: {
   const { view, rows, overall } = item;
   const c = view.credential;
   const shown = view.status === "Valid" ? overall : view.status;
+  const passedN = rows.filter((r) => r.result === "pass").length;
+  const anyFail = rows.some((r) => r.result === "fail");
 
   return (
-    <article className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h3 className="text-xl font-light tracking-tight">{view.issuerName}</h3>
+    <article className="rounded-(--radius-panel) border border-line bg-surface p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <h3 className="text-lg font-medium tracking-tight">{view.issuerName}</h3>
             <Badge state={shown}>{shown === "verified" ? "Verified" : shown === "failed" ? "Did not pass" : shown === "unknown" ? "Unknown" : shown}</Badge>
           </div>
-          <p className="mt-1">&ldquo;{c.summary}&rdquo;</p>
-          <p className="mt-1 text-sm text-quiet">
-            Credential {c.id}, issued {formatDate(c.issuedAt)}, expires {formatDate(c.expiresAt)}, on-chain status {view.status.toLowerCase()}, evidence hash {c.claimHash.slice(0, 8)}…
-          </p>
+          <p className="text-base">&ldquo;{c.summary}&rdquo;</p>
+          <p className="text-sm text-quiet">Credential {c.id}, expires {formatDate(c.expiresAt)}, on-chain status {view.status.toLowerCase()}.</p>
+          <p className="text-sm text-quiet">Evidence hash <Hash value={c.claimHash} label="evidence hash" /></p>
         </div>
         <div className="shrink-0">
           {dispute ? (
@@ -271,13 +310,19 @@ function CredentialBlock({ item, dispute, busy, anyBusy, onDispute }: {
               Dispute {dispute.id} {dispute.resolved ? (dispute.upheld ? "upheld, stake slashed" : "rejected") : "open, waiting for the admin"}
             </p>
           ) : (
-            <Button variant="danger" disabled={anyBusy || c.stake === 0} title={c.stake === 0 ? "No stake left to claim" : undefined} onClick={onDispute}>
-              <Gavel className="size-4" aria-hidden />{busy ? "Opening…" : "Open dispute"}
+            <Button variant="danger" disabled={anyBusy || c.stake === 0} loading={busy} title={c.stake === 0 ? "No stake left to claim" : undefined} onClick={onDispute}>
+              {!busy && <Gavel className="size-4" aria-hidden />}{busy ? "Opening…" : "Open dispute"}
             </Button>
           )}
         </div>
       </div>
-      <CheckList rows={rows} />
+      <details className="group mt-6 border-t border-line pt-4" open={anyFail}>
+        <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">
+          <ChevronDown className="size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />
+          {passedN} of {rows.length} checks passed
+        </summary>
+        <div className="mt-4"><CheckList rows={rows} /></div>
+      </details>
     </article>
   );
 }

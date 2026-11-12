@@ -19,10 +19,10 @@ export function SystemLog() {
         System log ({items.length} line{items.length === 1 ? "" : "s"})
       </summary>
       {error && <p className="mt-2 text-sm text-clay">Could not load the log: {error.message}</p>}
-      <ul className="mt-3 max-h-80 divide-y divide-line overflow-auto border-y border-line">
-        {items.length === 0 && <li className="py-3 text-sm text-quiet">Nothing logged yet.</li>}
+      <ul className="mt-4 max-h-80 divide-y divide-line overflow-auto border-y border-line">
+        {items.length === 0 && <li className="py-4 text-sm text-quiet">Nothing logged yet.</li>}
         {items.map((l) => (
-          <li key={l.id} className={`flex gap-3 py-2 text-sm ${COLOR[l.level]}`}>
+          <li key={l.id} className={`flex gap-4 py-2 text-sm ${COLOR[l.level]}`}>
             <span className="shrink-0 tabular-nums text-faint">{l.at.slice(11, 19)}</span>
             <span><span className="font-medium">{l.event}</span> {l.detail}</span>
           </li>

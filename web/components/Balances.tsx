@@ -14,7 +14,7 @@ export function Balances() {
   return (
     <dl className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
       {PARTIES.map((p, i) => (
-        <div key={p.key} className="flex items-baseline justify-between gap-4 border-b border-line py-2.5">
+        <div key={p.key} className="flex items-baseline justify-between gap-4 border-b border-line py-2">
           <dt className="min-w-0 truncate text-sm text-quiet">{p.name}</dt>
           <dd className="shrink-0 text-sm font-medium tabular-nums" data-balance={p.key}>{data ? usdc(data[i]) : "…"}</dd>
         </div>

@@ -24,7 +24,7 @@ export default function MyShopPage() {
     return (
       <div className="space-y-8">
         <PageTitle title="This page is for shopkeepers">Pick a shop.</PageTitle>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-4">
           <Button onClick={() => setRole("sharma")}>Shop 1</Button>
           <Button variant="secondary" onClick={() => setRole("mehta")}>Shop 2 (new, no credentials)</Button>
         </div>
@@ -88,7 +88,7 @@ function ShopDashboard({ shopId }: { shopId: string }) {
           {r ? (
             <>
               <Badge state={STANDING[r.verdict].state}>{STANDING[r.verdict].word}</Badge>
-              <h2 className="mt-3 text-2xl font-light leading-snug tracking-tight">{STANDING[r.verdict].title}</h2>
+              <h2 className="mt-4 text-2xl font-light leading-snug tracking-tight">{STANDING[r.verdict].title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-quiet">
                 {r.verdict === "not_enough_evidence"
                   ? "Ask the businesses you work with, your supplier and your payment app, to vouch for you on Mosaic. Two of them are enough."
@@ -101,7 +101,7 @@ function ShopDashboard({ shopId }: { shopId: string }) {
       </section>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
-        <Panel className="space-y-5 self-start">
+        <Panel className="space-y-6 self-start">
           <h2 className="text-lg font-medium tracking-tight">Ask for a loan</h2>
           {waiting ? (
             <p className="text-sm leading-relaxed text-quiet">
@@ -127,7 +127,7 @@ function ShopDashboard({ shopId }: { shopId: string }) {
                 <input className={inputClass} placeholder="For example, extra stock for the festival season" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
               </Field>
               {estimate.data && (
-                <p className="border-l-2 border-pine pl-4 text-sm leading-relaxed text-quiet">
+                <p className="rounded-(--radius-control) bg-wash px-4 py-4 text-sm leading-relaxed text-quiet">
                   {estimate.data.outcome === "approve" && <>Based on your verified records, lenders&apos; checks suggest up to <b className="font-medium text-ink">{money(estimate.data.limitInr)}</b>.{amount > estimate.data.limitInr && " You can still ask for more, but expect less."}</>}
                   {estimate.data.outcome === "review" && <>A lender will look at your request by hand. Their checks suggest up to <b className="font-medium text-ink">{money(estimate.data.limitInr)}</b>.</>}
                   {estimate.data.outcome === "not_enough_evidence" && <>There isn&apos;t enough evidence yet for lenders to suggest an amount. You can still ask, and a lender may decide by hand.</>}
@@ -144,15 +144,15 @@ function ShopDashboard({ shopId }: { shopId: string }) {
           {r && r.issuers.length === 0 && <p className="text-sm text-quiet">Nobody yet.</p>}
           <Rows>
             {r?.issuers.map((i) => (
-              <div key={i.issuer} className="py-3">
-                <div className="flex items-center justify-between gap-3">
+              <div key={i.issuer} className="py-4">
+                <div className="flex items-center justify-between gap-4">
                   <span className="flex items-center gap-2 font-medium">
                     {i.overall === "verified" ? <CircleCheck className="size-[18px] text-pine" aria-hidden /> : i.overall === "failed" ? <CircleX className="size-[18px] text-clay" aria-hidden /> : null}
                     {i.issuerName}
                   </span>
                   <span className="text-xs text-quiet">{i.overall === "verified" ? "Counts" : i.overall === "failed" ? "Does not count" : "Not checked yet"}</span>
                 </div>
-                <p className="mt-0.5 text-sm text-quiet">
+                <p className="mt-1 text-sm text-quiet">
                   {i.kind === "PaymentProvider" ? "Your payment app" : "Your supplier"} says {i.claimedMonthly ? `${rs(i.claimedMonthly)} a month` : "no amount"}.
                 </p>
                 {i.overall === "failed" && <p className="mt-1 text-sm text-clay">Your payments don&apos;t back this up, so lenders ignore it.</p>}
@@ -169,14 +169,14 @@ function ShopDashboard({ shopId }: { shopId: string }) {
         {(loans.data ?? []).length === 0 && <p className="text-sm text-quiet">No requests yet.</p>}
         <Rows>
           {(loans.data ?? []).map((l) => (
-            <div key={l.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={l.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                   <span className="font-medium">{money(l.amountInr)} over {l.months} months</span>
                   <Badge state={STATUS[l.status].state}>{l.status === "approved" ? `Approved ${rs(l.approvedInr ?? 0)}` : STATUS[l.status].label}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-quiet">For &ldquo;{l.purpose}&rdquo;. Asked on {formatDate(l.requestedAt)}{l.lender && <>, decided by {nameOf(l.lender)}</>}.</p>
-                {l.note && <p className="mt-0.5 text-sm text-quiet">Lender&apos;s note: {l.note}</p>}
+                {l.note && <p className="mt-1 text-sm text-quiet">Lender&apos;s note: {l.note}</p>}
               </div>
               {l.status === "requested" && <Button variant="secondary" disabled={busy !== null} onClick={() => withdraw(l.id)}>{busy === `w-${l.id}` ? "…" : "Withdraw"}</Button>}
             </div>

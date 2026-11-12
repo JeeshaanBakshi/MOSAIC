@@ -36,7 +36,7 @@ export function ShopReviewPanel() {
       <div className="mb-6 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Shop">
         {(shops.data ?? []).map((s) => (
           <button key={s.id} role="tab" aria-selected={s.id === picked} onClick={() => setPicked(s.id)}
-            className={`shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium ${s.id === picked ? "border-pine text-ink" : "border-transparent text-quiet hover:text-ink"}`}>
+            className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${s.id === picked ? "border-pine text-ink" : "border-transparent text-quiet hover:text-ink"}`}>
             {s.name}
           </button>
         ))}
@@ -47,7 +47,7 @@ export function ShopReviewPanel() {
       ) : (
         <div className="space-y-10">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-4">
               <h3 className="text-xl font-light tracking-tight">{r.shop?.name ?? picked}</h3>
               <Badge state={VERDICT[r.verdict].state}>{VERDICT[r.verdict].label}</Badge>
             </div>
@@ -64,8 +64,8 @@ export function ShopReviewPanel() {
 function IssuerReceiptsBlock({ row }: { row: IssuerReceipts }) {
   const pct = row.claimedMonthly ? Math.round((100 * row.avgNet) / row.claimedMonthly) : null;
   return (
-    <article className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <article className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h4 className="font-medium">{row.issuerName}</h4>
         <span className="text-sm text-quiet">{row.kind === "PaymentProvider" ? "Payment app" : row.kind === "Supplier" ? "Supplier" : "Unknown issuer"}, credential {row.credentialIds.join(", ")}</span>
         <Badge state={row.overall} />
@@ -78,21 +78,21 @@ function IssuerReceiptsBlock({ row }: { row: IssuerReceipts }) {
         <p className="text-sm text-quiet">No payment records for this issuer and shop. Unknown, not bad.</p>
       ) : (
         <div className="relative overflow-x-auto">
-          <table className="w-full min-w-[28rem] text-sm tabular-nums">
+          <table className="w-full text-sm tabular-nums">
             <thead className="text-left text-quiet">
               <tr className="border-b border-line">
-                <th scope="col" className="py-2 pr-4 font-medium">Month</th>
-                <th scope="col" className="pr-4 text-right font-medium">Paid</th>
-                <th scope="col" className="pr-4 text-right font-medium">Came back within 30 days</th>
+                <th scope="col" className="py-2 pr-2 font-medium sm:pr-4">Month</th>
+                <th scope="col" className="pr-2 text-right font-medium sm:pr-4">Paid</th>
+                <th scope="col" className="pr-2 text-right font-medium sm:pr-4" title="Money that came straight back within 30 days">Returned</th>
                 <th scope="col" className="text-right font-medium">Net</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {row.months.map((m) => (
                 <tr key={m.month}>
-                  <td className="py-2 pr-4">{MONTH(m.month)}</td>
-                  <td className="pr-4 text-right">{rs(m.paid)}</td>
-                  <td className={`pr-4 text-right ${m.returned ? "text-clay" : "text-faint"}`}>{m.returned ? `minus ${rs(m.returned)}` : "none"}</td>
+                  <td className="py-2 pr-2 sm:pr-4">{MONTH(m.month)}</td>
+                  <td className="pr-2 text-right sm:pr-4">{rs(m.paid)}</td>
+                  <td className={`pr-2 text-right sm:pr-4 ${m.returned ? "text-clay" : "text-quiet"}`}>{m.returned ? `−${rs(m.returned)}` : "none"}</td>
                   <td className="text-right font-medium">{rs(m.net)}</td>
                 </tr>
               ))}

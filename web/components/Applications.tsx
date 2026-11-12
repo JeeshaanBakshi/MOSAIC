@@ -78,7 +78,7 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
   return (
     <Panel className="space-y-6" data-application={a.businessName}>
       <div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h3 className="text-xl font-light tracking-tight">{a.businessName}</h3>
           <Badge state={v.state}>{v.label}</Badge>
         </div>
@@ -94,7 +94,7 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
       </div>
 
       <details open={!allPassed} className="group rounded-(--radius-control) border border-line">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-4 text-sm font-medium">
           <ChevronDown className="size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />
           Review by hand {allPassed ? "(optional, everything passed)" : `(needed, ${notPassed.length} check${notPassed.length === 1 ? "" : "s"} did not pass)`}
           {review.manualReview && <span className="ml-auto text-xs font-normal text-pine">Saved</span>}
@@ -107,7 +107,7 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
           <ul className="space-y-2">
             {checks.map((c) => (
               <li key={c.id}>
-                <label className="flex items-start gap-3 text-sm">
+                <label className="flex items-start gap-4 text-sm">
                   <input type="checkbox" className="mt-1 size-4 accent-[#2e5a4d]" checked={!!checked[c.id]} onChange={(e) => setChecked((x) => ({ ...x, [c.id]: e.target.checked }))} />
                   <span>I checked <span className="font-medium">{c.label}</span> myself{c.result !== "pass" && <span className="ml-1 text-clay">(automatic result: {c.result === "fail" ? "failed" : "unknown"})</span>}</span>
                 </label>
@@ -121,7 +121,7 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
         </div>
       </details>
 
-      <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className={`text-sm ${approval.allowed ? "text-pine" : "text-clay"}`}>{approval.reason}</p>
         <div className="flex shrink-0 gap-2">
           <Button variant="secondary" onClick={reject} disabled={busy !== null}>{busy === "reject" ? "…" : "Reject"}</Button>

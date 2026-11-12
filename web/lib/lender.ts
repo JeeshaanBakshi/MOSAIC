@@ -9,3 +9,8 @@ export function suggestedAmount(requestedInr: number, limitInr: number): number 
 export function distinctValidIssuers(views: { status: string; credential: { issuer: string } }[]): number {
   return new Set(views.filter((v) => v.status === "Valid").map((v) => v.credential.issuer)).size;
 }
+
+/** How many different issuers the checks verified. Counted once per issuer, however many credentials it signed. */
+export function distinctVerifiedIssuers(items: { issuer: string; verified: boolean }[]): number {
+  return new Set(items.filter((i) => i.verified).map((i) => i.issuer)).size;
+}
