@@ -1,5 +1,6 @@
 import { ChevronRight, Handshake, Landmark, ShieldCheck, Store, type LucideIcon } from "lucide-react";
 import { RoleLink } from "@/components/RoleLink";
+import { LoadDemoButton } from "@/components/LoadDemoButton";
 import type { Persona } from "@/lib/session";
 
 const DOORS: { role: Persona; href: string; title: string; body: string; Icon: LucideIcon }[] = [
@@ -54,7 +55,10 @@ export default function Home() {
             </li>
           ))}
         </ol>
-        <p className="mt-8 max-w-xl text-sm leading-relaxed text-quiet">Try it: open Admin and choose Load demo. Switch people with &ldquo;You are&rdquo; in the menu.</p>
+        <div className="mt-8 flex max-w-xl flex-col items-start gap-4">
+          <LoadDemoButton />
+          <p className="text-sm leading-relaxed text-quiet">Fills the app with example shops, issuers and credentials. Switch people with &ldquo;You are&rdquo; in the menu.</p>
+        </div>
       </section>
 
     </div>

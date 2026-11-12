@@ -303,8 +303,8 @@ ok("no emoji or ASCII arrows in the visible text", !/[\u{1F300}-\u{1FAFF}\u2705\
 await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1500);
 ok("loan amounts show a rough Canadian-dollar equivalent", /about CA\$\d/.test(await page.locator("body").innerText()));
 ok("dates use the Canadian style (Nov 11, 2026)", /[A-Z][a-z]{2} \d{1,2}, 2026/.test(await page.locator("body").innerText()));
-const fontOk = await page.evaluate(() => getComputedStyle(document.body).fontFamily.toLowerCase().includes("hanken"));
-ok("the Hanken Grotesk typeface is applied", fontOk);
+const fontOk = await page.evaluate(() => getComputedStyle(document.body).fontFamily.toLowerCase().includes("inter"));
+ok("the Inter typeface is applied", fontOk);
 await go("/lender"); await as("sharma"); await page.waitForTimeout(800);
 ok("the keyboard focus ring is visible", await (async () => { await page.keyboard.press("Tab"); await page.keyboard.press("Tab"); return (await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle)) === "solid"; })());
 for (const [name, w, h] of [["tablet", 820, 1100], ["phone", 390, 844], ["small phone", 320, 700]]) {

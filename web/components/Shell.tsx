@@ -63,10 +63,10 @@ function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2 text-ink">
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
-        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#2E5E8C" />
-        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".55" />
-        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".3" />
-        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".12" />
+        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#245B49" />
+        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#245B49" opacity=".55" />
+        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#245B49" opacity=".3" />
+        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#245B49" opacity=".12" />
       </svg>
       <span className="text-lg font-medium tracking-tight">Mosaic</span>
     </Link>
@@ -113,7 +113,7 @@ function NavLinks({ path, onNavigate }: { path: string; onNavigate: () => void }
     const active = path.startsWith(href) || (href === "/my-shop" && path.startsWith("/shop/"));
     return (
       <Link key={href} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined}
-        className={`flex min-h-10 items-center gap-4 rounded-(--radius-control) px-4 text-sm font-medium transition-colors ${active ? "bg-pine-soft text-pine" : "text-quiet hover:bg-wash hover:text-ink"}`}>
+        className={`flex min-h-10 items-center gap-4 rounded-(--radius-control) px-4 text-sm font-medium transition-colors ${active ? "bg-pine-soft text-pine-deep" : "text-quiet hover:bg-wash hover:text-ink"}`}>
         <Icon className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
         {label}
       </Link>

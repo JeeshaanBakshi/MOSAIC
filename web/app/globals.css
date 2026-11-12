@@ -1,27 +1,26 @@
 @import "tailwindcss";
 
-/* One hue family: slate blue on warm cream, one amber accent, plus a muted clay that appears only for failure.
+/* One hue family: forest green on warm off-white, plus a muted red for failure only.
    Structure comes from hairlines and spacing, not from shadows or boxes. */
 :root {
-  --paper: #F6F1E7;
-  --foreground: #172033;
+  --paper: #F5F7F5;
+  --foreground: #192824;
   color-scheme: light;
 }
 
 @theme inline {
   --color-paper: var(--paper);
-  --color-surface: #FFFDF8;
-  --color-wash: #EDE5D3;
+  --color-surface: #FFFFFF;
+  --color-wash: #EDF1EE;
   --color-ink: var(--foreground);
-  --color-quiet: #4A5263; /* secondary text (muted) */
-  --color-faint: #565E70; /* tertiary text and placeholders */
-  --color-line: #E2D8C4;
-  --color-pine: #2E5E8C; /* primary */
-  --color-accent: #E39B2D;
-  --color-pine-deep: #234A70;
-  --color-pine-soft: #E1EAF3;
-  --color-clay: #8f4638;
-  --color-clay-soft: #f2e7e4;
+  --color-quiet: #65746D; /* muted text: spec #718079 darkened slightly to reach 4.5:1 */
+  --color-faint: #65746D;
+  --color-line: #DFE7E1;
+  --color-pine: #245B49; /* primary */
+  --color-pine-deep: #1A4637;
+  --color-pine-soft: #E5EEE9;
+  --color-clay: #B94A3C;
+  --color-clay-soft: #F6E6E3;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-heading: var(--font-space), var(--font-inter), system-ui, sans-serif;
 
@@ -36,8 +35,8 @@
   --text-4xl: 3rem;     --text-4xl--line-height: 3.5rem;
   --text-5xl: 3.5rem;   --text-5xl--line-height: 4rem;
   --text-6xl: 3.5rem;   --text-6xl--line-height: 4rem;
-  --radius-panel: 0.75rem;
-  --radius-control: 0.625rem;
+  --radius-panel: 1rem;
+  --radius-control: 0.75rem;
 }
 
 html { background: var(--paper); }
@@ -53,9 +52,10 @@ body {
   font-feature-settings: "tnum" 1; /* money and counts line up */
 }
 
-::selection { background: var(--color-accent); color: var(--foreground); }
+::selection { background: var(--color-pine-soft); }
 input, textarea { caret-color: var(--color-pine); }
 a { text-underline-offset: 4px; }
+button, a, input, select, textarea { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
 h1, h2, h3, h4 { font-family: var(--font-heading); }
 * { scrollbar-color: var(--color-line) transparent; }
 details > summary::-webkit-details-marker { display: none; }
