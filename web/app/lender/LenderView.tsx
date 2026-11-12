@@ -69,6 +69,7 @@ export function LenderView() {
   const passedRules = rules.filter((r) => r.result === "pass");
   const failedRules = rules.filter((r) => r.result === "fail");
   const missingRules = rules.filter((r) => r.result === "unknown");
+  const outOfRange = !!loan && approveAmount > 0 && (approveAmount < 1000 || approveAmount > loan.amountInr); // the server only allows ₹1,000 up to what they asked for
   const beyond = !!decision.data && (decision.data.outcome !== "approve" || approveAmount > decision.data.limitInr);
 
   async function run(key: string, f: () => Promise<void>) {
@@ -170,7 +171,7 @@ export function LenderView() {
               <div className="space-y-6 rounded-(--radius-panel) bg-wash p-6">
                 <h3 className="text-base font-medium">Your decision</h3>
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <Field label="Approve (₹)" hint={suggested > 0 ? `They asked for ${money(loan.amountInr)}. Suggested: ${money(suggested)}.` : `They asked for ${money(loan.amountInr)}. No suggestion: not enough verified evidence.`}>
+                  <Field label="Approve (₹)" hint={outOfRange ? `Between ₹1,000 and ${money(loan.amountInr)}, the amount they asked for.` : suggested > 0 ? `They asked for ${money(loan.amountInr)}. Suggested: ${money(suggested)}.` : `They asked for ${money(loan.amountInr)}. No suggestion: not enough verified evidence.`}>
                     <input className={inputClass} inputMode="numeric" placeholder="Enter an amount" value={approveAmount ? String(approveAmount) : ""} onChange={(e) => setAmount(Number(e.target.value.replace(/\D/g, "").slice(0, 9)))} />
                   </Field>
                   <Field label={beyond ? "Note (required)" : "Note (optional)"} hint={beyond ? "Say why you are going beyond the recommendation." : undefined}>
@@ -179,7 +180,7 @@ export function LenderView() {
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button variant="secondary" onClick={() => decide(false)} disabled={busy !== null} loading={busy === "decline"}>Decline</Button>
-                  <Button onClick={() => decide(true)} disabled={busy !== null || !approveAmount || (beyond && !note.trim())} loading={busy === "approve"}>
+                  <Button onClick={() => decide(true)} disabled={busy !== null || !approveAmount || outOfRange || (beyond && !note.trim())} loading={busy === "approve"}>
                     {busy === "approve" ? "Saving…" : `Approve ${rs(approveAmount || 0)}`}
                   </Button>
                 </div>

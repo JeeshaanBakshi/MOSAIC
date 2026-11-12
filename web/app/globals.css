@@ -14,7 +14,7 @@
   --color-wash: #eaeeeb;
   --color-ink: var(--foreground);
   --color-quiet: #5a6762; /* secondary text, 5.4:1 on paper */
-  --color-faint: #8a9691; /* decorative only */
+  --color-faint: #5f6c66; /* tertiary text and placeholders: 4.5:1 or better on paper, surface and wash */
   --color-line: #d8dfdb;
   --color-pine: #2e5a4d;
   --color-pine-deep: #234639;

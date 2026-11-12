@@ -231,3 +231,86 @@ fn marking_an_unknown_credential_fails() {
     let s = setup();
     assert_eq!(s.client.try_mark_checked(&99, &true), Err(Ok(Error::CredentialNotFound)));
 }
+
+// ---------- robustness ----------
+
+#[test]
+fn init_needs_the_admins_signature() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let coin = env.register_stellar_asset_contract_v2(admin.clone());
+    let client = MosaicClient::new(&env, &env.register(Mosaic, ()));
+    client.init(&admin, &coin.address(), &STAKE);
+    assert_eq!(env.auths()[0].0, admin); // without this, the first caller after deploy could become admin
+}
+
+#[test]
+fn a_negative_stake_is_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let coin = env.register_stellar_asset_contract_v2(admin.clone());
+    let client = MosaicClient::new(&env, &env.register(Mosaic, ()));
+    assert_eq!(client.try_init(&admin, &coin.address(), &-5), Err(Ok(Error::InvalidAmount)));
+}
+
+#[test]
+fn a_lifetime_that_overflows_is_an_error_not_a_crash() {
+    let s = setup();
+    let result = s.client.try_issue_credential(
+        &s.supplier,
+        &shop(&s),
+        &symbol_short!("buyer"),
+        &String::from_str(&s.env, "x"),
+        &BytesN::from_array(&s.env, &[1u8; 32]),
+        &u64::MAX,
+    );
+    assert_eq!(result, Err(Ok(Error::InvalidTtl)));
+    assert_eq!(s.usdc.balance(&s.supplier), 1_000 * USDC); // nothing was locked
+}
+
+#[test]
+fn oversized_input_is_rejected() {
+    let s = setup();
+    let long = String::from_str(&s.env, &"x".repeat(300));
+    let result = s.client.try_issue_credential(
+        &s.supplier,
+        &shop(&s),
+        &symbol_short!("buyer"),
+        &long,
+        &BytesN::from_array(&s.env, &[1u8; 32]),
+        &0,
+    );
+    assert_eq!(result, Err(Ok(Error::InputTooLong)));
+}
+
+#[test]
+fn a_shop_cannot_collect_unlimited_credentials() {
+    let s = setup();
+    StellarAssetClient::new(&s.env, &s.usdc.address).mint(&s.supplier, &(10_000 * USDC));
+    for _ in 0..MAX_CREDS_PER_SHOP {
+        let id = issue(&s, &s.supplier, 0);
+        s.client.revoke(&s.supplier, &id); // revoking frees the (issuer, claim) slot but the list still grows
+    }
+    assert_eq!(
+        s.client.try_issue_credential(
+            &s.supplier,
+            &shop(&s),
+            &symbol_short!("buyer"),
+            &String::from_str(&s.env, "one too many"),
+            &BytesN::from_array(&s.env, &[1u8; 32]),
+            &0,
+        ),
+        Err(Ok(Error::TooManyCredentials))
+    );
+}
+
+#[test]
+fn keep_alive_works_for_anyone_and_changes_nothing_else() {
+    let s = setup();
+    issue(&s, &s.supplier, 0);
+    s.client.keep_alive(&shop(&s));
+    s.client.keep_alive(&String::from_str(&s.env, "never-seen")); // an unknown shop is fine
+    assert_eq!(s.client.get_credentials(&shop(&s)).len(), 1);
+}

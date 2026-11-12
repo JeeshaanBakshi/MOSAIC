@@ -7,6 +7,15 @@ use soroban_sdk::{
 const DAY_SECS: u64 = 24 * 60 * 60;
 const DEFAULT_TTL_SECS: u64 = 90 * DAY_SECS; // credentials last 90 days
 
+// Soroban deletes ("archives") stored data nobody pays to keep alive. Every write pushes its data's life out again.
+// The network caps a single extension at about 31 days, so we ask for ~29 (500,000 ledgers of ~5 seconds each).
+const BUMP_THRESHOLD: u32 = 100_000; // when fewer than this many ledgers remain...
+const BUMP_TO: u32 = 500_000; //        ...extend to this many
+
+// Size limits, so nobody can stuff the chain with junk or make a shop's list too long to read.
+const MAX_SHOP_ID_LEN: u32 = 64;
+const MAX_SUMMARY_LEN: u32 = 280;
+const MAX_CREDS_PER_SHOP: u32 = 100;
 // ---------- data we store ----------
 
 #[contracttype]
@@ -85,6 +94,10 @@ pub enum Error {
     CredentialNotFound = 5,
     NotYourCredential = 6,
     DuplicateClaim = 7, // this issuer already has an active credential of this type for this shop
+    InvalidTtl = 8,           // the lifetime is so long it overflows
+    InvalidAmount = 9,        // a negative stake
+    TooManyCredentials = 10,  // this shop already has the maximum number of credentials
+    InputTooLong = 11,        // shop id or summary over the size limit
 }
 
 // ---------- the contract ----------
@@ -95,11 +108,17 @@ pub struct Mosaic;
 #[contractimpl]
 impl Mosaic {
     pub fn init(env: Env, admin: Address, usdc: Address, stake_amount: i128) -> Result<(), Error> {
+        // The admin must sign. Otherwise whoever calls init first (after deploy) would become the admin.
+        admin.require_auth();
         if env.storage().instance().has(&DataKey::Config) {
             return Err(Error::AlreadyInitialized);
         }
+        if stake_amount < 0 {
+            return Err(Error::InvalidAmount);
+        }
         env.storage().instance().set(&DataKey::Config, &Config { admin, usdc, stake_amount });
         env.storage().instance().set(&DataKey::NextCredId, &1u64);
+        bump_instance(&env);
         Ok(())
     }
 
@@ -108,7 +127,9 @@ impl Mosaic {
         let config = get_config(&env)?;
         config.admin.require_auth();
         let record = Issuer { address: issuer.clone(), name, kind, active: true };
-        env.storage().persistent().set(&DataKey::Issuer(issuer), &record);
+        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &record);
+        bump_persistent(&env, &DataKey::Issuer(issuer));
+        bump_instance(&env);
         Ok(())
     }
 
@@ -129,6 +150,9 @@ impl Mosaic {
     ) -> Result<u64, Error> {
         issuer.require_auth(); // only the issuer themselves can speak for the issuer
         let config = get_config(&env)?;
+        if shop_id.len() > MAX_SHOP_ID_LEN || summary.len() > MAX_SUMMARY_LEN {
+            return Err(Error::InputTooLong);
+        }
 
         // Fraud check 1: must be approved, and not suspended.
         let record: Issuer = env
@@ -138,6 +162,13 @@ impl Mosaic {
             .ok_or(Error::IssuerNotApproved)?;
         if !record.active {
             return Err(Error::IssuerSuspended);
+        }
+
+        // A shop's list must stay short enough to read in one call.
+        let existing: Vec<u64> =
+            env.storage().persistent().get(&DataKey::ShopCreds(shop_id.clone())).unwrap_or(Vec::new(&env));
+        if existing.len() >= MAX_CREDS_PER_SHOP {
+            return Err(Error::TooManyCredentials);
         }
 
         // One active credential per (issuer, shop, claim type). Otherwise one issuer could stack
@@ -162,6 +193,7 @@ impl Mosaic {
 
         let ttl = if ttl_secs == 0 { DEFAULT_TTL_SECS } else { ttl_secs };
         let now = env.ledger().timestamp();
+        let expires_at = now.checked_add(ttl).ok_or(Error::InvalidTtl)?; // a huge ttl would overflow
         let cred = Credential {
             id,
             issuer,
@@ -170,7 +202,7 @@ impl Mosaic {
             summary,
             claim_hash,
             issued_at: now,
-            expires_at: now + ttl,
+            expires_at,
             revoked: false,
             stake: config.stake_amount,
             passed: false, // a new claim earns nothing until the checks have passed
@@ -183,6 +215,10 @@ impl Mosaic {
         ids.push_back(id);
         env.storage().persistent().set(&list_key, &ids);
 
+        bump_persistent(&env, &DataKey::Cred(id));
+        bump_persistent(&env, &list_key);
+        bump_persistent(&env, &DataKey::Issuer(cred.issuer.clone()));
+        bump_instance(&env);
         Ok(id)
     }
 
@@ -195,7 +231,22 @@ impl Mosaic {
             env.storage().persistent().get(&DataKey::Cred(id)).ok_or(Error::CredentialNotFound)?;
         cred.passed = passed;
         env.storage().persistent().set(&DataKey::Cred(id), &cred);
+        bump_persistent(&env, &DataKey::Cred(id));
+        bump_instance(&env);
         Ok(())
+    }
+
+    /// Anyone can pay to keep a shop's credentials from being archived. No signature needed: it only extends life.
+    pub fn keep_alive(env: Env, shop_id: String) {
+        let ids: Vec<u64> =
+            env.storage().persistent().get(&DataKey::ShopCreds(shop_id.clone())).unwrap_or(Vec::new(&env));
+        for id in ids.iter() {
+            bump_persistent(&env, &DataKey::Cred(id));
+        }
+        if !ids.is_empty() {
+            bump_persistent(&env, &DataKey::ShopCreds(shop_id));
+        }
+        bump_instance(&env);
     }
 
     /// The issuer withdraws a claim. The stake stays locked until it would have expired.
@@ -208,6 +259,8 @@ impl Mosaic {
         }
         cred.revoked = true;
         env.storage().persistent().set(&DataKey::Cred(id), &cred);
+        bump_persistent(&env, &DataKey::Cred(id));
+        bump_instance(&env);
         Ok(())
     }
 
@@ -246,6 +299,14 @@ fn has_active_claim(env: &Env, shop_id: &String, issuer: &Address, claim_type: &
         }
     }
     false
+}
+
+fn bump_persistent(env: &Env, key: &DataKey) {
+    env.storage().persistent().extend_ttl(key, BUMP_THRESHOLD, BUMP_TO);
+}
+
+fn bump_instance(env: &Env) {
+    env.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_TO);
 }
 
 fn get_config(env: &Env) -> Result<Config, Error> {

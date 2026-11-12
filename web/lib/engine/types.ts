@@ -95,6 +95,8 @@ export type ContractErrorName =
   | "CredentialNotFound"
   | "NotYourCredential"
   | "DuplicateClaim"
+  | "TooManyCredentials"
+  | "InputTooLong"
   | "DisputeNotFound"
   | "DisputeAlreadyOpen"
   | "DisputeAlreadyResolved"
@@ -113,6 +115,8 @@ const MESSAGES: Record<ContractErrorName, string> = {
   IssuerSuspended: "This issuer is suspended after 2 upheld disputes.",
   CredentialNotFound: "No credential with that id.",
   NotYourCredential: "Only the issuer who signed a credential can do this.",
+  TooManyCredentials: "This shop already has the maximum number of credentials (100).",
+  InputTooLong: "The shop id or summary is too long.",
   DuplicateClaim: "You already have an active credential of this type for this shop. Revoke it, or wait for it to expire, before issuing another.",
   DisputeNotFound: "No dispute with that id.",
   DisputeAlreadyOpen: "This credential already has an open dispute.",

@@ -1,4 +1,4 @@
-import { contract as c, backend as b, ACCOUNTS as A, demo, ContractError, withState, resetEverything } from "./engine";
+import { contract as c, backend as b, ACCOUNTS as A, demo, ContractError, ApiError, withState, resetEverything } from "./engine";
 const U = 10_000_000;
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra = "") => { cond ? pass++ : fail++; console.log(cond ? "  ✔" : "  ✘ FAIL", name, extra); };
@@ -85,6 +85,11 @@ resetEverything().then(() => withState(async () => {
   await b.submitEvidence(A.gupta.address, "shop-2", [5000, 5000, 5000, 5000, 5000, 5000], 0);
   ok("thin evidence -> no longer passed", !(await passedOf()));
   await throws("only the admin can mark claims", "NotAdmin", () => c.markChecked(A.gupta.address, cid, true));
+  const badEvidence = async (name: string, f: () => Promise<unknown>) => { try { await f(); ok(name, false, "(did not throw)"); } catch (e) { ok(name, e instanceof ApiError && e.code === "InvalidInput", (e as Error).message.slice(0, 50)); } };
+  await badEvidence("all-zero evidence is refused (it would wipe the real evidence)", () => b.submitEvidence(A.gupta.address, "shop-2", [0, 0, 0, 0, 0, 0], 0));
+  await badEvidence("evidence for a shop we have no records of is refused", () => b.submitEvidence(A.gupta.address, "typo-shop", [1000, 1000, 1000, 1000, 1000, 1000], 0));
+  await badEvidence("negative evidence is refused", () => b.submitEvidence(A.gupta.address, "shop-2", [-5, 1000, 1000, 1000, 1000, 1000], 0));
+  await badEvidence("wrong number of months is refused", () => b.submitEvidence(A.gupta.address, "shop-2", [1000, 1000], 0));
 
   console.log("-- failed tx changes nothing");
   const snapshot = await c.getBalance(A.paylink.address);

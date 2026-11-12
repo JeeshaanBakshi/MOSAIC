@@ -165,7 +165,7 @@ export default function IssuerPage() {
             <input className={inputClass} inputMode="numeric" value={refund} placeholder="0" onChange={(e) => setRefund(digits(e.target.value))} />
           </Field>
           {evidence.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(evidence.data.months.reduce((t, n) => t + n, 0) / 6))} a month on average.</p>}
-          <Button onClick={saveEvidence} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data} loading={busy === "evidence"} className="w-full">
+          <Button onClick={saveEvidence} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !months.some((m) => Number(m) > 0)} loading={busy === "evidence"} className="w-full">
             {busy === "evidence" ? "Saving…" : "Save evidence"}
           </Button>
         </Panel>

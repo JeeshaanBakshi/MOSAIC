@@ -88,7 +88,9 @@ export async function submitEvidence(issuer: string, shopId: string, months: num
   await sleep(LATENCY_MS);
   if (!read().issuers[issuer]) throw new ContractError("IssuerNotApproved");
   const ok = (n: number) => Number.isFinite(n) && n >= 0 && n <= 100_000_000;
+  if (!SHOPS[shopId]) throw new ApiError("InvalidInput", `We have no records for a shop called "${shopId}". Try shop-1 or shop-2.`);
   if (months.length !== WINDOW.length || !months.every(ok) || !ok(refundPerMonth)) throw new ApiError("InvalidInput", "Enter 6 monthly amounts of zero or more.");
+  if (!months.some((m) => m > 0)) throw new ApiError("InvalidInput", "Enter at least one month's amount. Saving all zeros would overwrite your evidence with nothing."); // never wipe real evidence by accident
   mutateDb((db, now) => { db.evidence[`${issuer}|${shopId}`] = { months: months.map(Math.round), refundPerMonth: Math.round(refundPerMonth), submittedAt: now }; });
   return syncChecks(shopId);
 }

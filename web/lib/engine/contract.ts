@@ -180,6 +180,10 @@ export async function issueCredential(
     if (!record) throw new ContractError("IssuerNotApproved"); // fraud check 1
     if (!record.active) throw new ContractError("IssuerSuspended");
 
+    // Size limits, same as the Rust contract.
+    if (shopId.length > 64 || summary.length > 280) throw new ContractError("InputTooLong");
+    if ((s.shopCreds[shopId] ?? []).length >= 100) throw new ContractError("TooManyCredentials");
+
     // One active credential per (issuer, shop, claim type). Revoked or expired ones don't count.
     const duplicate = (s.shopCreds[shopId] ?? []).some((id) => {
       const c = s.credentials[id];

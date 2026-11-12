@@ -267,6 +267,9 @@ ok("recommendation: approve up to ₹22,500", (await page.getByText("Recommend a
 ok("the rules explain the limit", await page.getByText(/Limit ₹22,500 = half of the lowest verified monthly figure/).isVisible());
 await page.screenshot({ path: `${S}/onb-lender-loan.png`, fullPage: true });
 await page.getByLabel("Approve (₹)").fill("25000");
+await page.getByLabel("Approve (₹)").fill("40000");
+ok("approving more than they asked for is blocked up front, with the range explained", (await btn("Approve ₹40,000").first().isDisabled()) && (await page.getByText(/Between ₹1,000 and/).isVisible()));
+await page.getByLabel("Approve (₹)").fill("25000");
 ok("approving above the limit with no note is blocked: the button is off and the note is marked required", (await btn("Approve ₹25,000").first().isDisabled()) && (await page.getByText("Note (required)").isVisible()));
 await page.getByLabel("Approve (₹)").fill("22500");
 await click("Approve ₹22,500", { wait: 1500 });
