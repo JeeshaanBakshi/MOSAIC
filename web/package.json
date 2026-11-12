@@ -1,0 +1,37 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:engine": "MAX_CODES_PER_HOUR=1000 tsx --conditions=react-server tests/rules.test.ts && MAX_CODES_PER_HOUR=1000 tsx --conditions=react-server tests/onboarding.test.ts && tsx --conditions=react-server tests/shop.test.ts && tsx --conditions=react-server tests/loans.test.ts && tsx --conditions=react-server tests/ratelimit.test.ts",
+    "test:cloud": "bash tests/run-cloud.sh",
+    "test:e2e": "bash tests/run-e2e.sh",
+    "test": "npm run test:engine && npm run test:cloud && npm run test:e2e"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.41.0",
+    "@xyflow/react": "^12.12.1",
+    "lucide-react": "^1.72.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "playwright-core": "^1.65.0",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

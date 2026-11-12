@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* One hue family: mineral pine. Everything is a tint of it, plus a single muted clay that appears only for failure.
+   Structure comes from hairlines and spacing, not from shadows or boxes. */
+:root {
+  --paper: #f3f5f2;
+  --foreground: #17211e;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: #fbfcfb;
+  --color-wash: #eaeeeb;
+  --color-ink: var(--foreground);
+  --color-quiet: #5a6762; /* secondary text, 5.4:1 on paper */
+  --color-faint: #8a9691; /* decorative only */
+  --color-line: #d8dfdb;
+  --color-pine: #2e5a4d;
+  --color-pine-deep: #234639;
+  --color-pine-soft: #e1ebe6;
+  --color-clay: #8f4638;
+  --color-clay-soft: #f2e7e4;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --radius-panel: 0.75rem;
+  --radius-control: 0.625rem;
+}
+
+html { background: var(--paper); }
+
+body {
+  background: var(--paper);
+  color: var(--foreground);
+  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum" 1; /* money and counts line up */
+}
+
+::selection { background: var(--color-pine-soft); }
+
+/* Visible keyboard focus everywhere, in the one accent. */
+:focus-visible { outline: 2px solid var(--color-pine); outline-offset: 2px; border-radius: 4px; }
+
+.react-flow__node { font-family: inherit; }
+.react-flow__attribution { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

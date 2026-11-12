@@ -1,0 +1,110 @@
+import { contract as c, backend as b, ACCOUNTS as A, demo, ContractError, ApiError, withState, resetEverything } from "./engine";
+let pass = 0, fail = 0;
+const ok = (n: string, cond: boolean, x = "") => { cond ? pass++ : fail++; console.log(cond ? "  ✔" : "  ✘ FAIL", n, x); };
+const throwsApi = async (n: string, code: string, f: () => Promise<unknown>) => { try { await f(); ok(n, false, "(no throw)"); } catch (e) { ok(n, e instanceof ApiError && e.code === code, `(${(e as Error).name}: ${(e as Error).message})`); } };
+const throwsC = async (n: string, code: string, f: () => Promise<unknown>) => { try { await f(); ok(n, false, "(no throw)"); } catch (e) { ok(n, e instanceof ContractError && e.code === code, `(${(e as Error).name})`); } };
+const codeFor = async (email: string) => (await b.getInbox(email))[0].body.match(/\d{6}/)![0];
+const res = (r: any, id: string) => r.checks.find((x: any) => x.id === id).result;
+
+resetEverything().then(() => withState(async () => {
+  const gupta = A.gupta.address, quick = A.quick.address, pay = A.paylink.address;
+  const g = b.exampleApplication("gupta")!;
+
+  console.log("-- form validation");
+  await throwsApi("empty field rejected", "InvalidInput", () => b.submitApplication(gupta, { ...g, ownerName: "" }));
+  await throwsApi("bad email rejected", "InvalidInput", () => b.submitApplication(gupta, { ...g, email: "nope" }));
+  await throwsApi("short phone rejected", "InvalidInput", () => b.submitApplication(gupta, { ...g, phone: "123" }));
+  ok("nothing emailed for invalid forms", (await b.getInbox(g.email)).length === 0);
+
+  console.log("-- emailed code");
+  const app = await b.submitApplication(gupta, g);
+  ok("application saved, email not verified", app.emailVerified === false && !("otp" in app));
+  const inbox = await b.getInbox(g.email);
+  ok("one email with a 6-digit code", inbox.length === 1 && /\d{6}/.test(inbox[0].body));
+  const code1 = await codeFor(g.email);
+  const wrong = code1 === "000000" ? "111111" : "000000";
+  await throwsApi("wrong code rejected (2 tries left)", "InvalidOtp", () => b.verifyEmail(gupta, wrong));
+  await throwsApi("wrong code again (1 try left)", "InvalidOtp", () => b.verifyEmail(gupta, wrong));
+  await throwsApi("third wrong code", "InvalidOtp", () => b.verifyEmail(gupta, wrong));
+  await throwsApi("locked out: even the RIGHT code fails after 3 wrong tries", "TooManyAttempts", () => b.verifyEmail(gupta, code1));
+  await b.resendOtp(gupta);
+  const code2 = await codeFor(g.email);
+  ok("resend sends a second email", (await b.getInbox(g.email)).length === 2);
+  await throwsApi("the OLD code no longer works", "InvalidOtp", () => b.verifyEmail(gupta, code1 === code2 ? wrong : code1));
+  await c.advanceTime(1);
+  await throwsApi("code expires after 10 minutes", "OtpExpired", () => b.verifyEmail(gupta, code2));
+  await b.resendOtp(gupta);
+  const verified = await b.verifyEmail(gupta, await codeFor(g.email));
+  ok("right code verifies the email", verified.emailVerified === true);
+
+  console.log("-- automatic checks");
+  let r = (await b.getReview(gupta))!;
+  ok("Issuer 1: all eight pass -> recommend approve", r.checks.length === 8 && r.checks.every((x) => x.result === "pass") && r.verdict === "recommend_approve", r.checks.map((x) => x.result).join(","));
+  ok("all pass -> admin may approve straight away", r.approval.allowed);
+  const p = b.exampleApplication("paylink")!; await b.submitApplication(pay, p); await b.verifyEmail(pay, await codeFor(p.email));
+  r = (await b.getReview(pay))!;
+  ok("Issuer 2: licence check passes, label is RBI", r.verdict === "recommend_approve" && r.checks[0].label.includes("RBI"));
+  const q = b.exampleApplication("quick")!; await b.submitApplication(quick, q); await b.verifyEmail(quick, await codeFor(q.email));
+  r = (await b.getReview(quick))!;
+  ok("Quick: independence FAILS (shares the shop's phone)", res(r, "independence") === "fail" && r.checks.find((x) => x.id === "independence")!.reason.includes("Shop 1"));
+  ok("Quick: trading history FAILS (sells to 1 shop)", res(r, "trading") === "fail");
+  ok("Quick: registration + bank still pass", res(r, "registration") === "pass" && res(r, "bank") === "pass");
+  ok("Quick -> recommend reject", r.verdict === "recommend_reject");
+
+  console.log("-- edge cases for the checks");
+  const stranger = "GSTRANGER";
+  await b.submitApplication(stranger, { ...g, registrationNumber: "bad-gst" });
+  ok("malformed GST number fails", res((await b.getReview(stranger))!, "registration") === "fail");
+  await b.submitApplication(stranger, { ...g, registrationNumber: "27AACCD9911P1Z3" });
+  let rr = (await b.getReview(stranger))!;
+  ok("cancelled GST registration fails", rr.checks[0].reason.includes("Cancelled"));
+  await b.submitApplication(stranger, { ...g, registrationNumber: "99ZZZZZ9999Z1Z9" });
+  rr = (await b.getReview(stranger))!;
+  ok("unknown GST number fails, bank + trading say unknown not bad", res(rr, "registration") === "fail" && res(rr, "bank") === "unknown" && res(rr, "trading") === "unknown");
+  ok("unverified email shows unknown", res(rr, "email") === "unknown" && rr.verdict === "recommend_reject");
+  await b.submitApplication(stranger, { ...g, bankAccountHolder: "Totally Different Name" });
+  ok("bank holder with a different name fails", res((await b.getReview(stranger))!, "bank") === "fail");
+  ok("name similarity: Issuer 1 vs Issuer 1 Traders = 67%", Math.round(b.nameSimilarity("Issuer 1", "Issuer 1 Traders") * 100) === 67);
+  ok("Pvt Ltd words are ignored", b.nameSimilarity("Issuer 2 Technologies", "Issuer 2 Technologies Pvt Ltd") === 1);
+
+  console.log("-- the approval rule + manual review");
+  r = (await b.getReview(quick))!;
+  ok("Quick: approval BLOCKED without a manual review", !r.approval.allowed);
+  await b.saveManualReview(quick, { independence: true, trading: true }, "");
+  ok("still blocked: no note", !(await b.getReview(quick))!.approval.allowed);
+  await b.saveManualReview(quick, { independence: true }, "Called the owner.");
+  r = (await b.getReview(quick))!;
+  ok("still blocked: 'trading' not ticked", !r.approval.allowed && r.approval.reason.includes("Real trading history"), r.approval.reason);
+  await b.saveManualReview(quick, { independence: true, trading: true }, "Visited the warehouse. Owner confirmed they sell to more shops.");
+  ok("allowed after ticking every failed check + a note", (await b.getReview(quick))!.approval.allowed);
+  await b.saveManualReview(gupta, {}, "Optional review: looked fine.");
+  ok("manual review is optional but allowed when all pass", (await b.getReview(gupta))!.manualReview?.note.startsWith("Optional") === true);
+  await b.submitApplication(quick, q);
+  ok("a NEW application clears the old manual review", (await b.getReview(quick))!.manualReview === null);
+
+  console.log("-- on-chain request");
+  await c.requestIssuer(gupta, g.businessName, g.kind, app.evidenceHash);
+  await b.markRequested(gupta);
+  ok("request is Pending on-chain", (await c.getIssuerRequest(gupta))?.status === "Pending");
+  ok("only a hash is on-chain, not the details", !JSON.stringify(await c.getIssuerRequest(gupta)).includes("23AABCG"));
+  await throwsC("a second request while pending", "RequestAlreadyPending", () => c.requestIssuer(gupta, g.businessName, g.kind, "00"));
+  await throwsC("non-admin cannot reject", "NotAdmin", () => c.rejectIssuerRequest(gupta, gupta));
+  await c.rejectIssuerRequest(A.admin.address, gupta);
+  ok("rejected request stays visible as Rejected", (await c.getIssuerRequest(gupta))?.status === "Rejected");
+  await throwsC("cannot reject twice", "RequestNotFound", () => c.rejectIssuerRequest(A.admin.address, gupta));
+  await c.requestIssuer(gupta, g.businessName, g.kind, "ab");
+  ok("a rejected applicant can apply again", (await c.getIssuerRequest(gupta))?.status === "Pending");
+  await c.addIssuer(A.admin.address, gupta, g.businessName, "Supplier");
+  ok("approving clears the request and adds the issuer", (await c.getIssuerRequest(gupta)) === null && (await c.getIssuer(gupta))?.active === true);
+  await throwsC("an approved issuer cannot request again", "AlreadyApproved", () => c.requestIssuer(gupta, "x", "Supplier", "00"));
+  ok("requests list", (await c.listIssuerRequests()).length === 0);
+
+})).then(() => resetEverything()).then(() => withState(async () => {
+  const quick = A.quick.address;
+  console.log("-- Load demo goes through the new path");
+  await demo.loadDemo();
+  ok("3 approved issuers + 3 credentials after Load demo", (await c.listIssuers()).length === 3 && (await c.getCredentials("shop-1")).length === 3);
+  ok("demo applications are stored off-chain", (await b.getApplication(quick))?.emailVerified === true);
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})).catch((e) => { console.error("CRASH", e); process.exit(2); });
