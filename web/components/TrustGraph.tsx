@@ -1,6 +1,6 @@
 "use client";
 // The trust graph: the shop in the centre, each issuer around it.
-// green = verified, grey = unknown, red = failed a check.
+// blue = verified, grey = unknown, red = failed a check.
 import type React from "react";
 import { ReactFlow, Background, Handle, Position, type Node, type Edge, type NodeProps, MarkerType } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -8,10 +8,10 @@ import { CircleCheck, CircleDashed, CircleX } from "lucide-react";
 import type { Graph } from "@/lib/mock";
 
 const COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  shop: { bg: "#17211e", border: "#17211e", text: "#fbfcfb" },
-  verified: { bg: "#e1ebe6", border: "#2e5a4d", text: "#234639" },
+  shop: { bg: "#172033", border: "#172033", text: "#FFFDF8" },
+  verified: { bg: "#E1EAF3", border: "#2E5E8C", text: "#234A70" },
   failed: { bg: "#f2e7e4", border: "#8f4638", text: "#8f4638" },
-  unknown: { bg: "#eaeeeb", border: "#8a9691", text: "#5a6762" },
+  unknown: { bg: "#EDE5D3", border: "#8A8576", text: "#4A5263" },
 };
 const KIND_LABEL: Record<string, string> = { Supplier: "Supplier", PaymentProvider: "Payment provider", shop: "Shop" };
 
@@ -78,7 +78,7 @@ export function TrustGraph({ graph }: { graph: Graph }) {
   return (
     <div className="h-[360px] w-full overflow-hidden rounded-(--radius-panel) border border-line bg-surface sm:h-[420px]">
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.25 }} nodesConnectable={false} proOptions={{ hideAttribution: true }}>
-        <Background color="#d8dfdb" gap={22} size={1} />
+        <Background color="#E2D8C4" gap={22} size={1} />
       </ReactFlow>
     </div>
   );

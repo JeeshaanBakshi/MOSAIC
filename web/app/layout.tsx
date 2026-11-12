@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Hanken_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Shell } from "@/components/Shell";
@@ -8,7 +8,8 @@ import { ResetOnLoad } from "@/components/ResetOnLoad";
 import { CloudSync } from "@/components/CloudSync";
 import "./globals.css";
 
-const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const space = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Mosaic: trading history as credit history",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${hanken.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${space.variable} h-full antialiased`}>
       <body>
         <Suspense fallback={null}><ResetOnLoad /></Suspense>
         <CloudSync />

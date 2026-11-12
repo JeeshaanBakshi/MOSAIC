@@ -63,10 +63,10 @@ function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2 text-ink">
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
-        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#2e5a4d" />
-        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#2e5a4d" opacity=".55" />
-        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#2e5a4d" opacity=".3" />
-        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#2e5a4d" opacity=".12" />
+        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#2E5E8C" />
+        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".55" />
+        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".3" />
+        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".12" />
       </svg>
       <span className="text-lg font-medium tracking-tight">Mosaic</span>
     </Link>

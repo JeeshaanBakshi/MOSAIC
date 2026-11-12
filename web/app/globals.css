@@ -1,27 +1,29 @@
 @import "tailwindcss";
 
-/* One hue family: mineral pine. Everything is a tint of it, plus a single muted clay that appears only for failure.
+/* One hue family: slate blue on warm cream, one amber accent, plus a muted clay that appears only for failure.
    Structure comes from hairlines and spacing, not from shadows or boxes. */
 :root {
-  --paper: #f3f5f2;
-  --foreground: #17211e;
+  --paper: #F6F1E7;
+  --foreground: #172033;
   color-scheme: light;
 }
 
 @theme inline {
   --color-paper: var(--paper);
-  --color-surface: #fbfcfb;
-  --color-wash: #eaeeeb;
+  --color-surface: #FFFDF8;
+  --color-wash: #EDE5D3;
   --color-ink: var(--foreground);
-  --color-quiet: #5a6762; /* secondary text, 5.4:1 on paper */
-  --color-faint: #5f6c66; /* tertiary text and placeholders: 4.5:1 or better on paper, surface and wash */
-  --color-line: #d8dfdb;
-  --color-pine: #2e5a4d;
-  --color-pine-deep: #234639;
-  --color-pine-soft: #e1ebe6;
+  --color-quiet: #4A5263; /* secondary text (muted) */
+  --color-faint: #565E70; /* tertiary text and placeholders */
+  --color-line: #E2D8C4;
+  --color-pine: #2E5E8C; /* primary */
+  --color-accent: #E39B2D;
+  --color-pine-deep: #234A70;
+  --color-pine-soft: #E1EAF3;
   --color-clay: #8f4638;
   --color-clay-soft: #f2e7e4;
-  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-heading: var(--font-space), var(--font-inter), system-ui, sans-serif;
 
   /* The one type scale: 12 / 14 / 16 / 20 / 24 / 32 / 40 / 48 / 56 px. Every text-* class in the app resolves to these. */
   --text-xs: 0.75rem;   --text-xs--line-height: 1rem;
@@ -43,7 +45,7 @@ html { background: var(--paper); }
 body {
   background: var(--paper);
   color: var(--foreground);
-  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -51,9 +53,10 @@ body {
   font-feature-settings: "tnum" 1; /* money and counts line up */
 }
 
-::selection { background: var(--color-pine-soft); }
+::selection { background: var(--color-accent); color: var(--foreground); }
 input, textarea { caret-color: var(--color-pine); }
 a { text-underline-offset: 4px; }
+h1, h2, h3, h4 { font-family: var(--font-heading); }
 * { scrollbar-color: var(--color-line) transparent; }
 details > summary::-webkit-details-marker { display: none; }
 

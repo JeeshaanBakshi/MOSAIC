@@ -14,7 +14,7 @@ export function Button({
   variant = "primary", className = "", loading = false, disabled, children, ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost"; loading?: boolean }) {
   const styles = {
-    primary: "bg-pine text-white hover:bg-pine-deep active:bg-[#1b362c]",
+    primary: "bg-pine text-white hover:bg-pine-deep active:bg-[#1B3A58]",
     secondary: "border border-line bg-surface text-ink hover:bg-wash active:bg-pine-soft",
     danger: "border border-clay/40 bg-surface text-clay hover:bg-clay-soft active:bg-clay-soft",
     ghost: "text-quiet hover:bg-wash hover:text-ink active:bg-pine-soft",
