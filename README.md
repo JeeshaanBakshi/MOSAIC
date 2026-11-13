@@ -122,9 +122,14 @@ Environment variables are listed in [`web/.env.example`](web/.env.example). Neve
 ## How to test on the live app
 
 1. Open https://mosiac-eight.vercel.app. The example data loads itself on the first visit.
-2. Press **Try the demo with Sharma Store** to see the shop's side.
-3. Go to the **Lender** page (menu > "You are" > Lender 1), press **Review**, then **Check the shop**.
-4. The five fraud cases are described on the home page and in [`web/README.md`](web/README.md#the-fraud-demo-5-cases-on-the-lender-page): an honest shop, a fake shop, a self-dealing issuer, an inflated claim with a round trip, and loan stacking.
+2. Press **Try the demo with Sharma Store**. It opens the lender view (Saathi Microfinance) on Sharma Store, Delhi.
+3. Press **Check the shop**. The lender pays 1 USDC, and the verdict card shows "Approve up to ₹22,500", "6 of 6 checks passed", and where the fee went. With testnet keys on the server it shows a real Stellar Expert link; otherwise it says "simulated".
+4. Press **Review** on **Sunrise Mart**, then **Check the shop**: "Unknown, not bad", no limit, "needs an independent payment app".
+5. Back on Sharma Store, open **QuickSupply** and **Anand Traders** in the evidence list: QuickSupply fails net flow (₹1,40,000 of ₹1,50,000 came straight back), Anand Traders fails independence (same phone and bank account as the shop). Both show as "Not counted".
+6. Press **Demo: 2 other lenders also check this shop** to see the stacking warning.
+7. To see a slash: on QuickSupply press **Open dispute**, then **Report a default**, switch "You are" to Mosaic admin and press **Uphold and slash**. The 30 USDC stake goes to the lender.
+
+A click-by-click script with what to say is in [`DEMO.md`](DEMO.md).
 
 ## Tests
 
@@ -137,8 +142,8 @@ Every link is a real transaction on the Stellar testnet contract above.
 
 | What | Transaction |
 |---|---|
-| Approve Issuer 2, 3 and 4 (check 1) | [Issuer 2](https://stellar.expert/explorer/testnet/tx/6b25b1402fe62a19af5434d84db49af6abf979a4c9a5a3443a04b6b932383193), [Issuer 3](https://stellar.expert/explorer/testnet/tx/9d9f71dd278e99cde5c1b875a0fadca590a87000ac85f0a782ed410239b99c9a), [Issuer 4](https://stellar.expert/explorer/testnet/tx/e81b19841fbfc72da5e877f9afc1f1bdbb280814c3040217ac9c249824ee4dc7) |
-| Issue credentials, each locking 30 USDC | [payment app on Shop 1](https://stellar.expert/explorer/testnet/tx/84db28679b74d21e95c7b06db93d416c660a447fb00bcda6c9c39334023e2c80), [QuickSupply on Shop 1](https://stellar.expert/explorer/testnet/tx/ada6920ec9bc8070d9c101ecb202b4c9d6aea774a4755fe1739de7a7dd11dad1), [self-dealer on Shop 1](https://stellar.expert/explorer/testnet/tx/7e94fb33dc62496aacd5d5ab7f4b367293749a140d6852cd44c6ab00de96690b), [QuickSupply on Shop 3](https://stellar.expert/explorer/testnet/tx/a2e57dc206a0a134aa25976f4bbd6dced9386dae8d0709fc000da8fba75d1ac3) |
+| Approve PayLink, 3 and 4 (check 1) | [PayLink](https://stellar.expert/explorer/testnet/tx/6b25b1402fe62a19af5434d84db49af6abf979a4c9a5a3443a04b6b932383193), [QuickSupply](https://stellar.expert/explorer/testnet/tx/9d9f71dd278e99cde5c1b875a0fadca590a87000ac85f0a782ed410239b99c9a), [Anand Traders](https://stellar.expert/explorer/testnet/tx/e81b19841fbfc72da5e877f9afc1f1bdbb280814c3040217ac9c249824ee4dc7) |
+| Issue credentials, each locking 30 USDC | [payment app on Sharma Store](https://stellar.expert/explorer/testnet/tx/84db28679b74d21e95c7b06db93d416c660a447fb00bcda6c9c39334023e2c80), [QuickSupply on Sharma Store](https://stellar.expert/explorer/testnet/tx/ada6920ec9bc8070d9c101ecb202b4c9d6aea774a4755fe1739de7a7dd11dad1), [self-dealer on Sharma Store](https://stellar.expert/explorer/testnet/tx/7e94fb33dc62496aacd5d5ab7f4b367293749a140d6852cd44c6ab00de96690b), [QuickSupply on Sunrise Mart](https://stellar.expert/explorer/testnet/tx/a2e57dc206a0a134aa25976f4bbd6dced9386dae8d0709fc000da8fba75d1ac3) |
 | Backend marks a claim as passed | [mark_checked](https://stellar.expert/explorer/testnet/tx/faa56d4047d72e689ea8cfe90b6e906c2ea4bb21a7efb6d7580b997f835df1d3) |
 | **Lender fee split:** the lender paid 1 USDC, 0.70 went to the supplier and 0.30 to the platform | [verify](https://stellar.expert/explorer/testnet/tx/17474d8c6f43f14a9b32611f470ae0c74f48047036fcc181a3d132753a57013f) |
 | **Dispute and slash:** default reported, dispute opened, upheld, the 30 USDC stake paid to the lender, the issuer gets a strike | [report_default](https://stellar.expert/explorer/testnet/tx/aabaefb04b070db61195c19ab31909adcf5579810ef23bf5dd4321f530ee7ca7), [open_dispute](https://stellar.expert/explorer/testnet/tx/c298e2b0840cacbdd6c70b480d7cd25ca647d4eaa8e331beffc44b6379ffa257), [resolve_dispute](https://stellar.expert/explorer/testnet/tx/14b81f35c177eb1e2c6f2d1cc751e24cdc04a8de97d42940ac3cc1fd2aaba3c6) |
@@ -151,11 +156,11 @@ Every link is a real transaction on the Stellar testnet contract above.
 | Role in the demo | Stellar CLI key | Environment variable (server) |
 |---|---|---|
 | Platform admin | `admin` | `STELLAR_SECRET_ADMIN` |
-| Issuer 1, honest supplier | `supplier` | `STELLAR_SECRET_SUPPLIER` |
-| Issuer 2, payment app | `payment_provider` | `STELLAR_SECRET_PAYMENT_APP` |
-| Issuer 3, QuickSupply (inflated claim, round trip) | `fake_issuer` | `STELLAR_SECRET_QUICKSUPPLY` |
-| Issuer 4, self-dealing supplier | `self_dealer` | `STELLAR_SECRET_SELFDEALER` |
-| Lender 1 | `lender` | `STELLAR_SECRET_LENDER` |
+| Gupta Wholesale, honest supplier | `supplier` | `STELLAR_SECRET_SUPPLIER` |
+| PayLink, payment app | `payment_provider` | `STELLAR_SECRET_PAYMENT_APP` |
+| QuickSupply, QuickSupply (inflated claim, round trip) | `fake_issuer` | `STELLAR_SECRET_QUICKSUPPLY` |
+| Anand Traders, self-dealing supplier | `self_dealer` | `STELLAR_SECRET_SELFDEALER` |
+| Saathi Microfinance | `lender` | `STELLAR_SECRET_LENDER` |
 | Test USDC issuer | `usdc_issuer` | not needed by the website |
 
 The keys live in the Stellar CLI keystore and, for the website, only in server environment variables (Vercel "Secret" values or a local `.env`). They are never in the repo.
@@ -184,5 +189,5 @@ The website keeps its own fast simulation of the contract. When the server has t
 
 ## Team
 
-- _Name, role_ (placeholder)
-- _Name, role_ (placeholder)
+- **Jeeshaan Bakshi**: product and smart contract
+- **Ashmit Bharti**: _role to be filled in_

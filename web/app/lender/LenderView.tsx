@@ -3,7 +3,7 @@
 // recommendation built from verified numbers only (backend.getLoanDecision), then approve or decline (backend.decideLoan).
 // Going beyond the recommendation needs a written note. The evidence (six fraud checks per credential) is shown below,
 // with a button to dispute a false claim.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Gavel, Search } from "lucide-react";
 import { ACCOUNTS, backend, contract, nameOf, rs, type LoanOutcome, type Payout } from "@/lib/mock";
@@ -15,7 +15,7 @@ import { cad, formatDate, usdc } from "@/lib/format";
 
 /** An amount in rupees with its rough Canadian-dollar equivalent. */
 const money = (inr: number) => `${rs(inr)} (about ${cad(inr)})`;
-import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError, Rows, Section, Stat, inputClass } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError, Rows, Section, Skeleton, Stat, inputClass } from "@/components/ui";
 import { Hash } from "@/components/Hash";
 import { CheckList, type RowLike } from "@/components/CheckList";
 import { errorToast, txToast } from "@/components/toast";
@@ -54,6 +54,13 @@ export function LenderView() {
   const disputes = useQuery(() => contract.listDisputes());
 
   const waiting = (loans.data ?? []).filter((l) => l.status === "requested");
+  const wanted = params.get("shop"); // the landing page's "Try the demo" opens the lender view on this shop
+  const autoPicked = useRef(false);
+  useEffect(() => {
+    if (autoPicked.current || !wanted || loanId !== null) return;
+    const l = waiting.find((x) => x.shopId === wanted);
+    if (l) { autoPicked.current = true; setLoanId(l.id); setShopId(l.shopId); }
+  }, [wanted, loanId, waiting]);
   const decided = (loans.data ?? []).filter((l) => l.status === "approved" || l.status === "declined").slice(0, 5);
   const loan = waiting.find((l) => l.id === loanId) ?? null;
   const checked = !!loan && verified?.shopId === loan.shopId; // paid to see this shop's evidence
@@ -63,11 +70,12 @@ export function LenderView() {
   const approveAmount = amount ?? suggested;
 
   const fee = config.data?.verifyFee;
+  const shopName = (id: string) => (shops.data ?? []).find((s) => s.id === id)?.name ?? id;
   const items = evidence.data ?? [];
   // Count voices, not paperwork: several credentials from the same issuer are still one issuer.
   const issuerCount = distinctValidIssuers(items.map((e) => e.view));
   const verifiedCount = distinctVerifiedIssuers(items.map((e) => ({ issuer: e.view.credential.issuer, verified: e.view.status === "Valid" && e.overall === "verified" })));
-  const rules: RowLike[] = (decision.data?.rules ?? []).map((r) => ({ label: r.label, result: r.result, reason: r.reason }));
+  const rules: RowLike[] = (decision.data?.rules ?? []).map((r) => ({ label: r.label, result: r.result, reason: r.reason, source: r.source }));
   const stackingRule = decision.data?.rules.find((r) => r.id === "stacking");
   const passedRules = rules.filter((r) => r.result === "pass");
   const failedRules = rules.filter((r) => r.result === "fail");
@@ -84,7 +92,7 @@ export function LenderView() {
     await backend.syncChecks(id); // make sure the contract knows which claims passed
     const { result, hash, onchain } = await contract.verify(me, id);
     setVerified({ shopId: id, payouts: result.payouts, hash, onchain: !!onchain });
-    txToast(`Checked ${id}. Paid ${fee ? usdc(fee) : "the fee"}.`, hash, onchain);
+    txToast(`Checked ${shopName(id)}. Paid ${fee ? usdc(fee) : "the fee"}.`, hash, onchain);
   });
 
   const pick = (id: number, shop: string) => {
@@ -115,12 +123,10 @@ export function LenderView() {
 
       {PERSONAS[role].kind !== "lender" && (
         <Notice tone="warn">
-          You are {PERSONAS[role].label}. <button className="font-medium underline underline-offset-4" onClick={() => setRole("asha")}>Switch to Lender 1, the lender</button>.
+          You are {PERSONAS[role].label}. <button className="font-medium underline underline-offset-4" onClick={() => setRole("asha")}>Switch to Saathi Microfinance, the lender</button>.
           {!accountOf(role) && " Shopkeepers have no wallet, so they can't pay to check a shop."}
         </Notice>
       )}
-
-      <OnChainPanel />
 
       <Section title={`Waiting for a decision (${waiting.length})`}>
         {loans.error && <QueryError what="loan requests" onRetry={loans.retry} />}
@@ -156,16 +162,10 @@ export function LenderView() {
           ) : decision.error ? (
             <QueryError what="the recommendation" onRetry={decision.retry} />
           ) : !decision.data ? (
-            <p className="text-sm text-quiet" role="status">Working out the recommendation…</p>
+            <div className="space-y-4" aria-busy="true"><Skeleton className="block h-8 w-2/3" /><Skeleton className="block h-4 w-1/2" /><Skeleton className="block h-32 w-full" /></div>
           ) : (
             <>
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <Badge state={OUTCOME[decision.data.outcome].state}>{OUTCOME[decision.data.outcome].label}</Badge>
-                  <span className="text-sm font-medium">{passedRules.length} of {decision.data.rules.length} checks passed</span>
-                </div>
-                <p className="text-lg leading-snug">{decision.data.summary}</p>
-              </div>
+              <VerdictCard decision={decision.data} passed={passedRules.length} total={decision.data.rules.length} paid={fee} verified={verified} />
 
               {stackingRule?.result === "fail" && <Notice tone="warn"><b className="font-medium">Possible loan stacking.</b> {stackingRule.reason}</Notice>}
 
@@ -236,16 +236,16 @@ export function LenderView() {
           </Button>
         </div>
       </details>
-      <p className="-mt-8 text-sm text-quiet">Paying from {PERSONAS[role].label}. Balance {balance.data === undefined ? "…" : usdc(balance.data)}.</p>
+      <p className="-mt-8 text-sm text-quiet">Paying from {PERSONAS[role].label}. Balance {balance.data === undefined ? <Skeleton className="h-4 w-14" /> : usdc(balance.data)}.</p>
 
       {verified && (
-        <section className="space-y-8 border-t border-line pt-8" aria-label={`Evidence for ${verified.shopId}`}>
-          <h2 className="text-lg font-medium tracking-tight">Evidence for {verified.shopId}</h2>
+        <section className="space-y-8 border-t border-line pt-8" aria-label={`Evidence for ${shopName(verified.shopId)}`}>
+          <h2 className="text-lg font-medium tracking-tight">Evidence for {shopName(verified.shopId)} <span className="text-xs font-normal text-faint">{verified.shopId}</span></h2>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <Stat label="Distinct issuers" value={`${verifiedCount} of ${issuerCount} verified`} hint="Several credentials from one issuer count once." />
             <div>
-              <Stat label="Lender checks, last 30 days" value={String(stacking.data ?? "…")} hint="Many at once can mean the shop is borrowing from several lenders." />
+              <Stat label="Lender checks, last 30 days" value={stacking.data === undefined ? <Skeleton /> : String(stacking.data)} hint="Many at once can mean the shop is borrowing from several lenders." />
               <div className="mt-2">{(stacking.data ?? 0) >= STACKING_ALERT ? <Badge state="fail">Possible loan stacking</Badge> : <Badge state="pass">Normal</Badge>}</div>
             </div>
           </div>
@@ -276,7 +276,7 @@ export function LenderView() {
 
           {evidence.error && <QueryError what="the evidence" onRetry={evidence.retry} />}
           {!evidence.error && !evidence.loading && items.length === 0 && (
-            <EmptyState title={`No credentials for ${verified.shopId}`}>That means unknown, not bad: this shop has no evidence yet. Ask its supplier or payment app to vouch.</EmptyState>
+            <EmptyState title={`No credentials for ${shopName(verified.shopId)}`}>That means unknown, not bad: this shop has no evidence yet. Ask its supplier or payment app to vouch.</EmptyState>
           )}
 
           <div className="space-y-6">
@@ -287,6 +287,41 @@ export function LenderView() {
             })}
           </div>
         </section>
+      )}
+
+      <OnChainPanel />
+    </div>
+  );
+}
+
+/** The answer first: what to do, and how sure we are. Then the fee that was paid and where it went. */
+function VerdictCard({ decision, passed, total, paid, verified }: {
+  decision: { outcome: LoanOutcome; limitInr: number; summary: string };
+  passed: number; total: number; paid?: number; verified: Verified | null;
+}) {
+  const tone = { approve: "bg-pine-soft", review: "bg-accent-soft", not_enough_evidence: "bg-wash" }[decision.outcome];
+  const headline = decision.outcome === "approve" ? `Approve up to ${rs(decision.limitInr)}`
+    : decision.outcome === "review" ? "Needs your judgement" : "Unknown, not bad";
+  const sub = decision.outcome === "review" ? `Suggested limit ${rs(decision.limitInr)}. ${decision.summary}`
+    : decision.outcome === "not_enough_evidence" ? "There isn't enough verified evidence yet to suggest a limit. That is not a mark against the shop." : decision.summary;
+  const platform = (verified?.payouts ?? []).filter((p) => p.to === ACCOUNTS.admin.address).reduce((t, p) => t + p.amount, 0);
+  const issuers = (verified?.payouts ?? []).filter((p) => p.to !== ACCOUNTS.admin.address).reduce((t, p) => t + p.amount, 0);
+  return (
+    <div className={`space-y-4 rounded-(--radius-panel) p-6 ${tone}`} data-verdict={decision.outcome}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Badge state={OUTCOME[decision.outcome].state}>{OUTCOME[decision.outcome].label}</Badge>
+        <span className="text-sm font-medium">{passed} of {total} checks passed</span>
+      </div>
+      <p className="text-3xl font-medium leading-tight tracking-tight">{headline}</p>
+      <p className="max-w-2xl text-base leading-relaxed text-quiet">{sub}</p>
+      {verified && (
+        <div className="border-t border-ink/10 pt-4 text-sm text-quiet">
+          <p>
+            {paid ? `You paid ${usdc(paid)}. ` : ""}
+            {usdc(issuers)} went to the issuers whose claims passed, {usdc(platform)} to the platform{verified.onchain ? ", read from the real transaction" : ""}.
+          </p>
+          <p className="mt-1"><TxRef hash={verified.hash} onchain={verified.onchain} /></p>
+        </div>
       )}
     </div>
   );

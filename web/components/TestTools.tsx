@@ -1,6 +1,7 @@
 "use client";
 // ADMIN ONLY: tools for testing and demos. Reset wipes the CLOUD data, so it affects everyone using this site.
 // CONNECT: delete this panel when you connect the real chain (the clock is the ledger's; there is no "reset").
+import { Skeleton } from "@/components/ui";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CalendarPlus, Database, RefreshCw, RotateCcw } from "lucide-react";
@@ -27,7 +28,7 @@ export function TestTools() {
   }
 
   return (
-    <Section id="tools" title="Test tools" aside={`App date: ${now.data ? formatDate(now.data) : "…"}`}>
+    <Section id="tools" title="Test tools" aside={<>App date: {now.data ? formatDate(now.data) : <Skeleton className="h-4 w-20" />}</>}>
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" disabled={busy} onClick={() => run("Skipped 30 days", () => contract.advanceTime(30))}><CalendarPlus className="size-4" aria-hidden />30 days (simulation only)</Button>
         <Button variant="secondary" disabled={busy} onClick={() => run("Skipped 90 days", () => contract.advanceTime(90))}><CalendarPlus className="size-4" aria-hidden />90 days (simulation only)</Button>

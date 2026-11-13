@@ -5,19 +5,19 @@ import "server-only";
 // CONNECT: delete this file. On the real chain you run scripts/seed.sh (or click through the UI) instead.
 
 import { ACCOUNTS } from "./accounts";
-import { addIssuer, issueCredential, requestIssuer } from "./contract";
+import { addIssuer, getCredentials, issueCredential, openDispute, requestIssuer, resolveDispute } from "./contract";
 import { submitPaymentFeed, syncChecks, verifiedAccountOf } from "./backend";
 import type { FeedMonth } from "./rules";
 import { markRequested, seedVerifiedApplication } from "./onboarding";
 import { requestLoan } from "./loans";
-import { logEvent, withoutChain } from "./store";
+import { logEvent, patchState, withoutChain } from "./store";
 import { claimHash } from "./util";
 
 /**
- * Six months of the payment app's records for Shop 1 (Sharma). Fixed numbers, so the demo is repeatable.
- *  - Issuer 1 (honest supplier): the shop pays its account ₹45,500 a month; one ₹2,000 credit note in August.
- *  - Issuer 3 (QuickSupply): the shop pays its account ₹1,50,000 a month and ₹1,40,000 comes straight back.
- *  - Issuer 4 (self-dealing): the shop pays its account ₹45,000 a month (but it shares the shop's phone and bank account).
+ * Six months of the payment app's records for Sharma Store (Sharma). Fixed numbers, so the demo is repeatable.
+ *  - Gupta Wholesale (honest supplier): the shop pays its account ₹45,500 a month; one ₹2,000 credit note in August.
+ *  - QuickSupply (QuickSupply): the shop pays its account ₹1,50,000 a month and ₹1,40,000 comes straight back.
+ *  - Anand Traders (self-dealing): the shop pays its account ₹45,000 a month (but it shares the shop's phone and bank account).
  *  - Receipts = customer sales + every transfer back (money in is money in), so the payment app's own claim
  *    only passes once the round trips are taken out (check 4).
  */
@@ -60,8 +60,8 @@ async function loadDemoSimulated() {
   }
 
   // 2. Each issuer signs a claim and locks 30 USDC.
-  //    Shop 1 (Sharma): honest supplier + payment app, a round-tripping supplier, a self-dealing supplier.
-  //    Shop 3: listed and vouched for by Issuer 3 alone, with no payment-app records.
+  //    Sharma Store (Sharma): honest supplier + payment app, a round-tripping supplier, a self-dealing supplier.
+  //    Sunrise Mart: listed and vouched for by QuickSupply alone, with no payment-app records.
   const claims = [
     { by: gupta, shop: "shop-1", type: "buyer", summary: "Regular buyer for 18 months, buys ₹45,000 a month, pays on time" },
     { by: paylink, shop: "shop-1", type: "receipts", summary: "Payment-app (UPI) receipts above ₹50,000 a month for 6 months" },
@@ -74,13 +74,20 @@ async function loadDemoSimulated() {
     await issueCredential(c.by.address, c.shop, c.type, c.summary, hash);
   }
 
-  // 3. The payment app shares Shop 1's records. The checks use THIS, never what a supplier typed.
+  // 3. The payment app shares Sharma Store's records. The checks use THIS, never what a supplier typed.
   await submitPaymentFeed(paylink.address, "shop-1", sharmaFeed());
   await syncChecks("shop-1"); // the backend checks the claims and tells the contract which passed
   await syncChecks("shop-3");
 
+  // Shop 3's only voucher, QuickSupply, was proven wrong: after the shop defaulted, a lender's dispute was upheld and the
+  // 30 USDC stake was paid out. The real testnet contract shows the same, so the page and the On-chain panel agree.
+  patchState((s) => { s.verifiers["shop-3"] = ["lender-2"]; s.defaults["shop-3"] = s.now; });
+  const fakeCred = (await getCredentials("shop-3"))[0].credential.id;
+  const dispute = await openDispute("lender-2", fakeCred);
+  await resolveDispute(admin.address, dispute.result, true);
+
   // 4. Both shops ask for a loan, so the lender has something to decide.
   await requestLoan("shop-3", 100000, 6, "Opening stock for a new shop");
   await requestLoan("shop-1", 20000, 6, "Extra stock for the festival season");
-  logEvent("info", "demo_loaded", "Demo loaded: 4 issuers approved, 5 credentials issued, Shop 1 (honest) and Shop 3 (vouched only by Issuer 3) asked for loans.");
+  logEvent("info", "demo_loaded", "Demo loaded: 4 issuers approved, 5 credentials issued, Sharma Store (honest) and Sunrise Mart (vouched only by QuickSupply) asked for loans.");
 }

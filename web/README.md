@@ -72,7 +72,7 @@ The red **Reset all data** button (top bar), and any URL ending in `?reset=1`, *
 
 The home page asks who you are: a shopkeeper, a supplier or payment app, a lender, or the platform admin. Each has its own page. **"You are"** in the side menu switches person at any time (shopkeepers: Sharma General Store, or Mehta Kirana which is new and has no credentials; issuers: Gupta Wholesale, PayLink, Quick Traders; lender: Asha Microfinance). The **Admin** page holds the test tools, the balances and both logs, so the other pages stay clean.
 
-Quick start: just open the site. The demo loads itself on the first visit, and **Try the demo with Sharma Store** on the home page opens Sharma (Shop 1). (In the app the people are named Shop 1 = Sharma Store, Issuer 1 = the honest supplier, Issuer 2 = the payment app, Issuer 3 = QuickSupply, Issuer 4 = the self-dealing supplier, Lender 1.)
+Quick start: just open the site. The demo loads itself on the first visit, and **Try the demo with Sharma Store** on the home page opens the lender view on Sharma Store, Delhi. The people in the demo: Sharma Store (the honest shop), Verma Kirana (a new shop with no credentials), Sunrise Mart (a fake shop), Gupta Wholesale (honest supplier), PayLink (payment app), QuickSupply (inflated claim and round trip), Anand Traders (self-dealing supplier) and Saathi Microfinance (the lender).
 
 ### The fraud demo: 5 cases on the Lender page
 
@@ -81,9 +81,9 @@ On the Lender page press **Review**, then **Check the shop**. Each check shows P
 | # | Case | What the lender sees |
 |---|---|---|
 | 1 | **Sharma Store (honest)**: a supplier and a payment app | all checks pass, "Approve", limit ₹22,500 |
-| 2 | **Fake shop (Shop 3)**: listed and vouched for by Issuer 3 alone, no payment-app receipts | "Needs an independent payment app. Unknown." No limit |
-| 3 | **Self-dealing (Issuer 4)** shares the shop's phone and bank account | independence fails, the claim is "Not counted" |
-| 4 | **Inflated + round trip (Issuer 3)** claims ₹1,50,000/month; the payment app shows ₹1,50,000 out and ₹1,40,000 back | payment match passes on the gross, **net flow fails** (net ₹10,000 vs ₹1,05,000 needed), "Not counted" |
+| 2 | **Fake shop (Sunrise Mart)**: listed and vouched for by QuickSupply alone, no payment-app receipts | "Needs an independent payment app. Unknown." No limit |
+| 3 | **Self-dealing (Anand Traders)** shares the shop's phone and bank account | independence fails, the claim is "Not counted" |
+| 4 | **Inflated + round trip (QuickSupply)** claims ₹1,50,000/month; the payment app shows ₹1,50,000 out and ₹1,40,000 back | payment match passes on the gross, **net flow fails** (net ₹10,000 vs ₹1,05,000 needed), "Not counted" |
 | 5 | **Stacking**: press "Demo: 2 other lenders also check this shop" on Sharma | 3 checks in 30 days: a stacking warning, limit halved |
 
 **Payment match (check 2) and net flow (check 4) use payment-app data, never the supplier's own numbers.** A payment app shares, month by month, the shop's receipts, what it paid out per payee account, and what came back from each payee. A supplier's claim of ₹X/month counts only if the shop paid that supplier's *verified* account at least 70% of X; money sent back by that account the same month is subtracted and the test is run again. What the supplier types is saved and shown as "Supplier says" but is never used to pass a check.

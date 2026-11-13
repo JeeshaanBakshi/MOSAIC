@@ -11,16 +11,16 @@ import { suggestedAmount, distinctValidIssuers, distinctVerifiedIssuers } from "
   await withState(async () => {
     console.log("-- the demo's loan request");
     const open = await b.listLoans({ status: "requested" });
-    ok("Shop 1 asked for Rs 20,000 over 6 months (and Shop 3 for Rs 1,00,000)", open.length === 2 && open[0].shopId === "shop-1" && open[0].amountInr === 20000 && open[0].shopName === "Shop 1" && open[1].shopId === "shop-3");
+    ok("Sharma Store asked for Rs 20,000 over 6 months (and Sunrise Mart for Rs 1,00,000)", open.length === 2 && open[0].shopId === "shop-1" && open[0].amountInr === 20000 && open[0].shopName === "Sharma Store" && open[1].shopId === "shop-3");
 
     console.log("-- the recommendation");
     let d = await b.getLoanDecision("shop-1", 20000, 6);
-    ok("approve, limit Rs 22,500 (half of Issuer 1's verified Rs 45,167/month)", d.outcome === "approve" && d.limitInr === 22500, d.summary);
-    ok("Issuer 3's failed claim is not counted as evidence", !rule(d, "evidence").reason.includes("vouch") || !rule(d, "evidence").reason.split("Not counted")[0].includes("Issuer 3"));
+    ok("approve, limit Rs 22,500 (half of Gupta Wholesale's verified Rs 45,167/month)", d.outcome === "approve" && d.limitInr === 22500, d.summary);
+    ok("QuickSupply's failed claim is not counted as evidence", !rule(d, "evidence").reason.includes("vouch") || !rule(d, "evidence").reason.split("Not counted")[0].includes("QuickSupply"));
     d = await b.getLoanDecision("shop-1", 30000, 6);
     ok("asking for more than the limit: approve UP TO the limit", d.outcome === "approve" && d.summary.includes("up to ₹22,500") && rule(d, "limit").result === "fail", d.summary);
     const m = await b.getLoanDecision("shop-2", 10000, 3);
-    ok("Shop 2: not enough evidence, limit 0", m.outcome === "not_enough_evidence" && m.limitInr === 0);
+    ok("Verma Kirana: not enough evidence, limit 0", m.outcome === "not_enough_evidence" && m.limitInr === 0);
 
     console.log("-- the shopkeeper's side");
     await rejects("a second open request is refused", () => b.requestLoan("shop-1", 5000, 3, "rent"), "already have a request");
@@ -29,10 +29,10 @@ import { suggestedAmount, distinctValidIssuers, distinctVerifiedIssuers } from "
     await rejects("no purpose", () => b.requestLoan("shop-2", 5000, 3, " "), "what the loan is for");
     await rejects("unknown shop", () => b.requestLoan("nobody", 5000, 3, "stock"), "don't know this shop");
     const mehta = await b.requestLoan("shop-2", 10000, 3, "New fridge");
-    ok("Shop 2 can ask", mehta.status === "requested");
+    ok("Verma Kirana can ask", mehta.status === "requested");
 
     console.log("-- the lender's side");
-    await rejects("approving Shop 2 (not enough evidence) without a note is blocked", () => b.decideLoan(A.asha.address, mehta.id, true, 10000, ""), "Write a note");
+    await rejects("approving Verma Kirana (not enough evidence) without a note is blocked", () => b.decideLoan(A.asha.address, mehta.id, true, 10000, ""), "Write a note");
     const sharma = open[0];
     await rejects("approving more than they asked for is refused", () => b.decideLoan(A.asha.address, sharma.id, true, 25000, ""), "they asked for");
   });
@@ -46,7 +46,7 @@ import { suggestedAmount, distinctValidIssuers, distinctVerifiedIssuers } from "
     ok("following the recommendation needs no note", done.status === "approved" && done.approvedInr === 20000 && done.recommendation === "approve");
     await rejects("a decided request can't be decided again", () => b.decideLoan(A.asha.address, sharma.id, false, 0, ""), "already approved");
     const log = await b.listAuditLog();
-    ok("the decision is in the system log", log.some((l: any) => l.event === "loan_approved" && l.detail.includes("Lender 1")));
+    ok("the decision is in the system log", log.some((l: any) => l.event === "loan_approved" && l.detail.includes("Saathi Microfinance")));
 
     const again = await b.requestLoan("shop-1", 15000, 6, "More stock");
     await b.withdrawLoan("shop-1", again.id);

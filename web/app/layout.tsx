@@ -13,8 +13,8 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const space = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Mosaic: trading history as credit history",
-  description: "Suppliers and payment apps vouch for small shops. Lenders check the evidence and decide. Prototype, blockchain simulated.",
+  title: "MOSAIC: trading history as credit history",
+  description: "Testnet prototype: real Stellar testnet transactions, test USDC, made-up shop data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

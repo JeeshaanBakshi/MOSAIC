@@ -21,16 +21,15 @@ import { rs } from "./rules";
 import { ApiError, ContractError, type IssuerKind, type Status } from "./types";
 
 const LATENCY_MS = 300;
-const MONTHS = 6; // the evidence window: May to Oct 2026
 
 // ---------- fake data ----------
 
-/** Who each issuer really is, and the receiving account it verified at onboarding. Issuer 4 shares the shop owner's phone and bank account on purpose. */
+/** Who each issuer really is, and the receiving account it verified at onboarding. Anand Traders shares the shop owner's phone and bank account on purpose. */
 const ISSUER_IDENTITY: Partial<Record<RoleId, Party>> = {
-  gupta: { owner: "Issuer 1 Owner", phone: "+91 97300 33333", bankAccount: "ICIC-0009012-11122233", address: "88 Siyaganj Market, Indore, Madhya Pradesh" },
-  paylink: { owner: "Issuer 2 Technologies Pvt Ltd", phone: "+91 80000 44444", bankAccount: "AXIS-0003456-99988877", address: "21 MG Road, Bengaluru, Karnataka" },
-  quick: { owner: "Issuer 3 Owner", phone: "+91 98100 77777", bankAccount: "KOTK-0007890-44455566", address: "3 Nehru Nagar, Indore, Madhya Pradesh" },
-  selfdeal: { owner: "Issuer 4 Owner", phone: "+91 98100 11111", bankAccount: "SBIN-0001234-55501234", address: "9 Market Lane, Indore, Madhya Pradesh" },
+  gupta: { owner: "Ramesh Gupta", phone: "+91 97300 33333", bankAccount: "ICIC-0009012-11122233", address: "88 Siyaganj Market, Indore, Madhya Pradesh" },
+  paylink: { owner: "PayLink Technologies Pvt Ltd", phone: "+91 80000 44444", bankAccount: "AXIS-0003456-99988877", address: "21 MG Road, Bengaluru, Karnataka" },
+  quick: { owner: "Vikram Malhotra", phone: "+91 98100 77777", bankAccount: "KOTK-0007890-44455566", address: "3 Nehru Nagar, Indore, Madhya Pradesh" },
+  selfdeal: { owner: "Anand Mehra", phone: "+91 98100 11111", bankAccount: "SBIN-0001234-55501234", address: "9 Market Lane, Indore, Madhya Pradesh" },
 };
 
 /** Who an issuer really is: what it told us when it applied (if it did), else the demo record. */

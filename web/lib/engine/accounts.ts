@@ -18,11 +18,11 @@ export interface Account {
 
 export const ACCOUNTS: Record<RoleId, Account> = {
   admin: { id: "admin", name: "Admin", label: "approves issuers, resolves disputes, receives the platform fee", address: fakeAddress("admin"), home: "/admin" },
-  gupta: { id: "gupta", name: "Issuer 1", label: "supplier (honest issuer)", address: fakeAddress("gupta"), kind: "Supplier", home: "/issuer" },
-  paylink: { id: "paylink", name: "Issuer 2", label: "payment provider (honest issuer)", address: fakeAddress("paylink"), kind: "PaymentProvider", home: "/issuer" },
-  quick: { id: "quick", name: "Issuer 3", label: "supplier that inflates its claims", address: fakeAddress("quick"), kind: "Supplier", home: "/issuer" },
-  selfdeal: { id: "selfdeal", name: "Issuer 4", label: "supplier that deals with the shop's own people (self-dealing)", address: fakeAddress("selfdeal"), kind: "Supplier", home: "/issuer" },
-  asha: { id: "asha", name: "Lender 1", label: "lender", address: fakeAddress("asha"), home: "/lender" },
+  gupta: { id: "gupta", name: "Gupta Wholesale", label: "supplier (honest issuer)", address: fakeAddress("gupta"), kind: "Supplier", home: "/issuer" },
+  paylink: { id: "paylink", name: "PayLink", label: "payment provider (honest issuer)", address: fakeAddress("paylink"), kind: "PaymentProvider", home: "/issuer" },
+  quick: { id: "quick", name: "QuickSupply", label: "supplier that inflates its claims", address: fakeAddress("quick"), kind: "Supplier", home: "/issuer" },
+  selfdeal: { id: "selfdeal", name: "Anand Traders", label: "supplier that deals with the shop's own people (self-dealing)", address: fakeAddress("selfdeal"), kind: "Supplier", home: "/issuer" },
+  asha: { id: "asha", name: "Saathi Microfinance", label: "lender", address: fakeAddress("asha"), home: "/lender" },
 };
 
 export const ROLE_IDS = Object.keys(ACCOUNTS) as RoleId[];
@@ -35,9 +35,9 @@ export const CONTRACT_ADDRESS = fakeAddress("mosaic-contract", "C");
 const byAddress: Record<string, string> = Object.fromEntries([
   ...ROLE_IDS.map((r) => [ACCOUNTS[r].address, ACCOUNTS[r].name]),
   [CONTRACT_ADDRESS, "MOSAIC contract"],
-  ["shop-1", "Shop 1"], // shops have no wallet, but they appear in the activity log when they approve an issuer
-  ["shop-2", "Shop 2"],
-  ["shop-3", "Shop 3"],
+  ["shop-1", "Sharma Store"], // shops have no wallet, but they appear in the activity log when they approve an issuer
+  ["shop-2", "Verma Kirana"],
+  ["shop-3", "Sunrise Mart"],
   ["lender-2", "Lender 2"], // the demo's "other lenders" (stacking counter)
   ["lender-3", "Lender 3"],
 ]);

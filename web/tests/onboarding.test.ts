@@ -39,17 +39,17 @@ resetEverything().then(() => withState(async () => {
 
   console.log("-- automatic checks");
   let r = (await b.getReview(gupta))!;
-  ok("Issuer 1: all eight pass -> recommend approve", r.checks.length === 8 && r.checks.every((x) => x.result === "pass") && r.verdict === "recommend_approve", r.checks.map((x) => x.result).join(","));
+  ok("Gupta Wholesale: all eight pass -> recommend approve", r.checks.length === 8 && r.checks.every((x) => x.result === "pass") && r.verdict === "recommend_approve", r.checks.map((x) => x.result).join(","));
   ok("all pass -> admin may approve straight away", r.approval.allowed);
   const p = b.exampleApplication("paylink")!; await b.submitApplication(pay, p); await b.verifyEmail(pay, await codeFor(p.email));
   r = (await b.getReview(pay))!;
-  ok("Issuer 2: licence check passes, label is RBI", r.verdict === "recommend_approve" && r.checks[0].label.includes("RBI"));
+  ok("PayLink: licence check passes, label is RBI", r.verdict === "recommend_approve" && r.checks[0].label.includes("RBI"));
   const q = b.exampleApplication("selfdeal")!; await b.submitApplication(quick, q); await b.verifyEmail(quick, await codeFor(q.email));
   r = (await b.getReview(quick))!;
-  ok("Issuer 4: independence FAILS (shares the shop's phone)", res(r, "independence") === "fail" && r.checks.find((x) => x.id === "independence")!.reason.includes("Shop 1"));
-  ok("Issuer 4: trading history FAILS (sells to 1 shop)", res(r, "trading") === "fail");
-  ok("Issuer 4: registration + bank still pass", res(r, "registration") === "pass" && res(r, "bank") === "pass");
-  ok("Issuer 4 -> recommend reject", r.verdict === "recommend_reject");
+  ok("Anand Traders: independence FAILS (shares the shop's phone)", res(r, "independence") === "fail" && r.checks.find((x) => x.id === "independence")!.reason.includes("Sharma Store"));
+  ok("Anand Traders: trading history FAILS (sells to 1 shop)", res(r, "trading") === "fail");
+  ok("Anand Traders: registration + bank still pass", res(r, "registration") === "pass" && res(r, "bank") === "pass");
+  ok("Anand Traders -> recommend reject", r.verdict === "recommend_reject");
 
   console.log("-- edge cases for the checks");
   const stranger = "GSTRANGER";
@@ -64,12 +64,12 @@ resetEverything().then(() => withState(async () => {
   ok("unverified email shows unknown", res(rr, "email") === "unknown" && rr.verdict === "recommend_reject");
   await b.submitApplication(stranger, { ...g, bankAccountHolder: "Totally Different Name" });
   ok("bank holder with a different name fails", res((await b.getReview(stranger))!, "bank") === "fail");
-  ok("name similarity: Issuer 1 vs Issuer 1 Traders = 67%", Math.round(b.nameSimilarity("Issuer 1", "Issuer 1 Traders") * 100) === 67);
-  ok("Pvt Ltd words are ignored", b.nameSimilarity("Issuer 2 Technologies", "Issuer 2 Technologies Pvt Ltd") === 1);
+  ok("name similarity: Gupta Wholesale vs Gupta Wholesale Traders = 67%", Math.round(b.nameSimilarity("Gupta Wholesale", "Gupta Wholesale Traders") * 100) === 67);
+  ok("Pvt Ltd words are ignored", b.nameSimilarity("PayLink Technologies", "PayLink Technologies Pvt Ltd") === 1);
 
   console.log("-- the approval rule + manual review");
   r = (await b.getReview(quick))!;
-  ok("Issuer 4: approval BLOCKED without a manual review", !r.approval.allowed);
+  ok("Anand Traders: approval BLOCKED without a manual review", !r.approval.allowed);
   await b.saveManualReview(quick, { independence: true, trading: true }, "");
   ok("still blocked: no note", !(await b.getReview(quick))!.approval.allowed);
   await b.saveManualReview(quick, { independence: true }, "Called the owner.");

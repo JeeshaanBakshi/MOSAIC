@@ -10,30 +10,30 @@ const bal = async (r: keyof typeof A) => (await c.getBalance(A[r].address)) / U;
 resetEverything().then(() => withState(async () => {
   console.log("-- check 1: registry");
   await throws("unapproved issuer rejected", "IssuerNotApproved", () => c.issueCredential(A.gupta.address, "shop-1", "buyer", "x", "00", 0));
-  await throws("non-admin cannot approve", "NotAdmin", () => c.addIssuer(A.gupta.address, A.gupta.address, "Issuer 1", "Supplier"));
+  await throws("non-admin cannot approve", "NotAdmin", () => c.addIssuer(A.gupta.address, A.gupta.address, "Gupta Wholesale", "Supplier"));
   await throws("init twice", "AlreadyInitialized", () => c.init());
 
   console.log("-- demo flow");
   await demo.loadDemo();
   ok("4 credentials on shop-1 (Sharma) + 1 on shop-3", (await c.getCredentials("shop-1")).length === 4 && (await c.getCredentials("shop-3")).length === 1);
-  ok("stakes locked: contract holds 150 (5 credentials x 30)", (await c.getBalance((await import("../lib/engine/accounts")).CONTRACT_ADDRESS)) / U === 150);
+  ok("stakes locked: contract holds 120 (5 credentials x 30, minus the 30 slashed on Sunrise Mart)", (await c.getBalance((await import("../lib/engine/accounts")).CONTRACT_ADDRESS)) / U === 120);
   ok("gupta 970", (await bal("gupta")) === 970);
 
   console.log("-- backend checks 2-4");
   const ev = await b.getChecks("shop-1");
   const by = (n: string) => ev.find((e) => e.issuerName === n)!;
-  ok("Issuer 1 verified", by("Issuer 1").overall === "verified");
-  ok("Issuer 2 verified", by("Issuer 2").overall === "verified");
+  ok("Gupta Wholesale verified", by("Gupta Wholesale").overall === "verified");
+  ok("PayLink verified", by("PayLink").overall === "verified");
   const res = (n: string) => by(n).checks.map((x) => x.result).join(",");
-  ok("Issuer 3 (round-trip): payment match passes on gross, NET FLOW fails -> failed", res("Issuer 3") === "pass,pass,fail" && by("Issuer 3").overall === "failed", res("Issuer 3"));
-  ok("Issuer 4 (self-dealing): independence fails -> failed", res("Issuer 4") === "pass,fail,pass" && by("Issuer 4").overall === "failed", res("Issuer 4"));
-  ok("Issuer 4: the failure names the fields that matched", by("Issuer 4").checks[1].reason.includes("phone") && by("Issuer 4").checks[1].reason.includes("bank account"), by("Issuer 4").checks[1].reason);
-  ok("every check says whose data it used", by("Issuer 1").checks.every((x) => x.source.length > 0 && x.numbers.length > 0) && by("Issuer 1").checks[0].source.includes("Issuer 2"));
+  ok("QuickSupply (round-trip): payment match passes on gross, NET FLOW fails -> failed", res("QuickSupply") === "pass,pass,fail" && by("QuickSupply").overall === "failed", res("QuickSupply"));
+  ok("Anand Traders (self-dealing): independence fails -> failed", res("Anand Traders") === "pass,fail,pass" && by("Anand Traders").overall === "failed", res("Anand Traders"));
+  ok("Anand Traders: the failure names the fields that matched", by("Anand Traders").checks[1].reason.includes("phone") && by("Anand Traders").checks[1].reason.includes("bank account"), by("Anand Traders").checks[1].reason);
+  ok("every check says whose data it used", by("Gupta Wholesale").checks.every((x) => x.source.length > 0 && x.numbers.length > 0) && by("Gupta Wholesale").checks[0].source.includes("PayLink"));
 
   console.log("-- verify: fee split");
   const v = await c.verify(A.asha.address, "shop-1");
   ok("the 2 issuers whose claims passed get 0.35 each", v.result.payouts.slice(0, 2).every((p) => p.amount === 3_500_000), JSON.stringify(v.result.payouts.map((p) => p.amount / U)));
-  ok("Issuers 3 and 4 (failed checks) earn nothing", v.result.payouts.length === 3 && v.result.payouts.every((p) => p.to !== A.quick.address && p.to !== A.selfdeal.address));
+  ok("QuickSupply and Anand Traders (failed checks) earn nothing", v.result.payouts.length === 3 && v.result.payouts.every((p) => p.to !== A.quick.address && p.to !== A.selfdeal.address));
   ok("platform gets remainder 0.30", Math.abs((await bal("admin")) - 0.3) < 1e-6, String(await bal("admin")));
   ok("lender paid exactly 1", (await bal("asha")) === 999);
   ok("stacking counter = 1", v.result.checksLast30Days === 1);
@@ -41,7 +41,7 @@ resetEverything().then(() => withState(async () => {
   ok("stacking counter = 2", (await c.checksLast30Days("shop-1")) === 2);
 
   console.log("-- disputes");
-  const quickCred = (await c.getCredentials("shop-1")).find((x) => x.issuerName === "Issuer 3")!.credential.id;
+  const quickCred = (await c.getCredentials("shop-1")).find((x) => x.issuerName === "QuickSupply")!.credential.id;
   const d1 = await c.openDispute(A.asha.address, quickCred);
   await throws("one open dispute per credential", "DisputeAlreadyOpen", () => c.openDispute(A.asha.address, quickCred));
   await throws("non-admin cannot resolve", "NotAdmin", () => c.resolveDispute(A.asha.address, d1.result, true));
@@ -54,19 +54,15 @@ resetEverything().then(() => withState(async () => {
   await c.resolveDispute(A.admin.address, d1.result, true);
   ok("stake slashed to lender (+30)", (await bal("asha")) - before === 30);
   ok("credential revoked, stake 0", (await c.getCredentials("shop-1")).find((x) => x.credential.id === quickCred)!.status === "Revoked");
-  ok("Quick has 1 strike, still active", (await c.getIssuer(A.quick.address))!.upheldClaims === 1 && (await c.getIssuer(A.quick.address))!.active);
+  ok("QuickSupply has 2 strikes (one from the demo's Sunrise Mart slash) and is suspended", (await c.getIssuer(A.quick.address))!.upheldClaims === 2 && !(await c.getIssuer(A.quick.address))!.active);
   await throws("resolved dispute can't be resolved again", "DisputeAlreadyResolved", () => c.resolveDispute(A.admin.address, d1.result, true));
 
   console.log("-- 2 strikes suspend");
   const hash = await (await import("../lib/engine/util")).claimHash({ a: 1 });
-  const second = await c.issueCredential(A.quick.address, "shop-1", "buyer", "Rs 2 lakh again", hash);
-  const d2 = await c.openDispute(A.asha.address, second.result);
-  await c.resolveDispute(A.admin.address, d2.result, true);
-  ok("Quick suspended", !(await c.getIssuer(A.quick.address))!.active);
   await throws("suspended issuer can't issue", "IssuerSuspended", () => c.issueCredential(A.quick.address, "shop-1", "buyer", "x", hash));
 
   console.log("-- revoke / expiry / release stake");
-  const g = (await c.getCredentials("shop-1")).find((x) => x.issuerName === "Issuer 1")!.credential.id;
+  const g = (await c.getCredentials("shop-1")).find((x) => x.issuerName === "Gupta Wholesale")!.credential.id;
   await throws("only issuer can revoke", "NotYourCredential", () => c.revoke(A.paylink.address, g));
   await throws("stake locked before expiry", "NotExpiredYet", () => c.releaseStake(A.gupta.address, g));
   await c.advanceTime(91);
@@ -115,7 +111,7 @@ resetEverything().then(() => withState(async () => {
   console.log("-- failed tx changes nothing");
   const snapshot = await c.getBalance(A.paylink.address);
   let code = "";
-  for (let i = 0; i < 40 && !code; i++) {            // Issuer 2 keeps staking 30 USDC until the money runs out
+  for (let i = 0; i < 40 && !code; i++) {            // PayLink keeps staking 30 USDC until the money runs out
     try { await c.issueCredential(A.paylink.address, "shop-2", `claim${i}`, "Rs 50,000/month", hash); } catch (e) { code = (e as ContractError).code; }
   }
   ok("ran out of money -> InsufficientBalance", code === "InsufficientBalance", code);

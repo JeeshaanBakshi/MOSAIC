@@ -87,7 +87,7 @@ export interface FlowContext {
   kind: IssuerKindName;
   account: string | null; // supplier's verified receiving account
   feed: PaymentFeed | null; // payment-app records for this shop (null = none shared)
-  feedFrom: string; // the payment app that supplied them, e.g. "Issuer 2"
+  feedFrom: string; // the payment app that supplied them, e.g. "PayLink"
 }
 
 /** Why a flow check can't be run yet, or null when it can. Always "unknown", never "fail". */

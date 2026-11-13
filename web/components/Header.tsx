@@ -54,10 +54,10 @@ function NavLinks({ path }: { path: string }) {
 function Logo() {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
-      <rect x="1" y="1" width="9" height="9" rx="2" fill="#245B49" />
-      <rect x="12" y="1" width="9" height="9" rx="2" fill="#8DB3A3" />
-      <rect x="1" y="12" width="9" height="9" rx="2" fill="#192824" />
-      <rect x="12" y="12" width="9" height="9" rx="2" fill="#DFE7E1" />
+      <rect x="1" y="1" width="9" height="9" rx="2" fill="#2E5E8C" />
+      <rect x="12" y="1" width="9" height="9" rx="2" fill="#9DB7D1" />
+      <rect x="1" y="12" width="9" height="9" rx="2" fill="#172033" />
+      <rect x="12" y="12" width="9" height="9" rx="2" fill="#E2D8C4" />
     </svg>
   );
 }

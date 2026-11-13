@@ -14,38 +14,41 @@ const rule = (d: any, id: string) => d.rules.find((r: any) => r.id === id);
     console.log("-- case 1: Sharma Store (honest): supplier + payment app, every check passes, a limit is shown");
     const sharma = await b.getChecks("shop-1");
     const by = (n: string) => sharma.find((e) => e.issuerName === n)!;
-    ok("supplier (Issuer 1): checks 2, 3 and 4 all pass -> verified", by("Issuer 1").overall === "verified" && by("Issuer 1").checks.every((x) => x.result === "pass"));
-    ok("payment app (Issuer 2): checks 2, 3 and 4 all pass -> verified", by("Issuer 2").overall === "verified" && by("Issuer 2").checks.every((x) => x.result === "pass"));
+    ok("supplier (Gupta Wholesale): checks 2, 3 and 4 all pass -> verified", by("Gupta Wholesale").overall === "verified" && by("Gupta Wholesale").checks.every((x) => x.result === "pass"));
+    ok("payment app (PayLink): checks 2, 3 and 4 all pass -> verified", by("PayLink").overall === "verified" && by("PayLink").checks.every((x) => x.result === "pass"));
     const d = await b.getLoanDecision("shop-1", 20000, 6);
     ok("recommendation: approve, with a limit of Rs 22,500", d.outcome === "approve" && d.limitInr === 22500, d.summary);
     ok("no stacking warning yet", rule(d, "stacking").result === "pass");
 
     console.log("-- payment match and net flow use PAYMENT-APP data, never the supplier's own numbers");
-    ok("Issuer 1's payment match names the payment app and the verified account", by("Issuer 1").checks[0].source.includes("Issuer 2") && by("Issuer 1").checks[0].source.includes(by("Issuer 1").verifiedAccount!));
-    ok("Issuer 1's net flow subtracts the Rs 2,000 credit note (net Rs 45,167)", by("Issuer 1").checks[2].numbers.includes("₹45,167"), by("Issuer 1").checks[2].numbers);
+    ok("Gupta Wholesale's payment match names the payment app and the verified account", by("Gupta Wholesale").checks[0].source.includes("PayLink") && by("Gupta Wholesale").checks[0].source.includes(by("Gupta Wholesale").verifiedAccount!));
+    ok("Gupta Wholesale's net flow subtracts the Rs 2,000 credit note (net Rs 45,167)", by("Gupta Wholesale").checks[2].numbers.includes("₹45,167"), by("Gupta Wholesale").checks[2].numbers);
     await b.submitSupplierSays(A.quick.address, "shop-1", [150000, 150000, 150000, 150000, 150000, 150000], 0); // QuickSupply says: sold 1.5 lakh, nothing sent back
-    const q2 = (await b.getChecks("shop-1")).find((e) => e.issuerName === "Issuer 3")!;
+    const q2 = (await b.getChecks("shop-1")).find((e) => e.issuerName === "QuickSupply")!;
     ok("QuickSupply's own rosy numbers are shown as 'Supplier says'...", q2.supplierSays?.avgPurchases === 150000 && q2.supplierSays.sentBackPerMonth === 0);
     ok("...but its claim still fails (checks use the payment app)", q2.overall === "failed" && q2.checks[2].result === "fail");
 
     console.log("-- case 2: fake shop, vouched only by QuickSupply, no payment-app receipts");
     const fake = await b.getChecks("shop-3");
-    ok("one credential, from Issuer 3", fake.length === 1 && fake[0].issuerName === "Issuer 3");
+    ok("one credential, from QuickSupply", fake.length === 1 && fake[0].issuerName === "QuickSupply");
+    const fakeView = (await c.getCredentials("shop-3"))[0];
+    ok("the page matches the chain: that credential is revoked and its 30 USDC stake was slashed", fakeView.status === "Revoked" && fakeView.credential.stake === 0);
+    ok("QuickSupply has 1 strike from it", (await c.getIssuer(A.quick.address))!.upheldClaims === 1);
     ok("payment match and net flow are UNKNOWN (no payment-app records), not failed", fake[0].checks[0].result === "unknown" && fake[0].checks[2].result === "unknown" && fake[0].overall === "unknown", fake[0].checks.map((x) => x.result).join(","));
     const fd = await b.getLoanDecision("shop-3", 100000, 6);
     ok("recommendation: not enough evidence, NO limit", fd.outcome === "not_enough_evidence" && fd.limitInr === 0, fd.summary);
     ok("the reason: needs an independent payment app. Unknown.", rule(fd, "evidence").reason.includes("Needs an independent payment app. Unknown"), rule(fd, "evidence").reason);
 
     console.log("-- case 3: self-dealing issuer shares the shop's phone and bank account");
-    const sd = by("Issuer 4");
+    const sd = by("Anand Traders");
     ok("independence FAILS and says which fields matched", sd.checks[1].result === "fail" && sd.checks[1].reason.includes("phone") && sd.checks[1].reason.includes("bank account"), sd.checks[1].reason);
-    ok("its claim is not counted (failed) and the lender is told why", sd.overall === "failed" && rule(d, "evidence").reason.includes("Issuer 4: independence failed"), rule(d, "evidence").reason);
+    ok("its claim is not counted (failed) and the lender is told why", sd.overall === "failed" && rule(d, "evidence").reason.includes("Anand Traders: independence failed"), rule(d, "evidence").reason);
 
     console.log("-- case 4: QuickSupply claims Rs 1,50,000 a month; payment app: Rs 1,50,000 out, Rs 1,40,000 back");
-    const qk = by("Issuer 3");
+    const qk = by("QuickSupply");
     ok("payment match alone would pass (gross Rs 1,50,000)", qk.checks[0].result === "pass" && qk.checks[0].numbers.includes("₹1,50,000"));
     ok("net flow FAILS: Rs 1,40,000 came back, net Rs 10,000 vs Rs 1,05,000 needed", qk.checks[2].result === "fail" && qk.checks[2].numbers.includes("₹1,40,000") && qk.checks[2].numbers.includes("₹10,000") && qk.checks[2].numbers.includes("₹1,05,000"), qk.checks[2].numbers);
-    ok("claim not counted, with the reason", rule(d, "evidence").reason.includes("Not counted: Issuer 3") && qk.overall === "failed");
+    ok("claim not counted, with the reason", rule(d, "evidence").reason.includes("Not counted: QuickSupply") && qk.overall === "failed");
     ok("the shop is NOT blamed: the failed claim does not lower Sharma's limit", d.limitInr === 22500);
 
     console.log("-- case 5: stacking, Sharma checked by 3 lenders in 30 days");

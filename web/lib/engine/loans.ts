@@ -34,6 +34,7 @@ export interface LoanRule {
   label: string;
   result: Result;
   reason: string;
+  source?: string; // whose data this check used
 }
 
 export interface LoanDecision {
@@ -93,6 +94,17 @@ export async function getLoanDecision(shopId: string, amountInr: number, months:
         id: "limit", label: "Within the limit", result: amountInr <= limit ? "pass" : "fail",
         reason: `Limit ${rs(limit)} = half of the lowest verified monthly figure (${rs(lowest)})${stacking >= STACKING_ALERT ? ", halved again for stacking" : ""}. Asked for ${rs(amountInr)}.`,
       });
+
+  // Whose data each check used, so the lender knows who to trust.
+  const SOURCES: Record<string, string> = {
+    evidence: "On-chain credentials + payment-app records",
+    issuers_independent: "Issuers' registry details",
+    ratio: "Payment-app records (money in vs money paid out)",
+    coverage: "Payment-app records",
+    stacking: "MOSAIC contract (every lender's checks)",
+    limit: "Verified payment-app figures",
+  };
+  for (const r of rules) r.source = SOURCES[r.id];
 
   let outcome: LoanOutcome;
   let summary: string;

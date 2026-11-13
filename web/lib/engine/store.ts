@@ -24,7 +24,7 @@ export interface ActivityItem {
   fn: string; // contract function name, e.g. "issue_credential"
   caller: string; // who signed it
   summary: string;
-  effects: string[]; // what moved, e.g. "30 USDC: Issuer 1 → MOSAIC contract"
+  effects: string[]; // what moved, e.g. "30 USDC: Gupta Wholesale → MOSAIC contract"
   onchain?: boolean; // true = `hash` is a real Stellar testnet transaction; otherwise it is simulated
   time: number;
 }

@@ -83,7 +83,7 @@ export function OnChainPanel() {
       </div>
       <dl className="grid gap-4 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-8">
         <dt className="text-quiet">Contract</dt>
-        <dd><a href={contractUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-xs text-pine underline underline-offset-4">{CONTRACT_ID}<ExternalLink className="size-3 shrink-0" aria-hidden /></a></dd>
+        <dd className="min-w-0"><a href={contractUrl} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{CONTRACT_ID}<ExternalLink className="ml-1 inline size-3" aria-hidden /><span className="sr-only"> on Stellar Expert</span></a></dd>
         <dt className="text-quiet">Network</dt>
         <dd>Stellar testnet (test USDC, no real money)</dd>
       </dl>

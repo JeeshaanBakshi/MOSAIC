@@ -7,7 +7,7 @@ import { useQuery } from "@/lib/hooks";
 import { loadEvidence } from "@/lib/checks";
 import { formatDate } from "@/lib/format";
 import { TrustGraph, GraphLegend } from "@/components/TrustGraph";
-import { Badge, PageTitle, Rows, Section, Stat } from "@/components/ui";
+import { Badge, PageTitle, Rows, Section, Skeleton, Stat } from "@/components/ui";
 
 export function ShopView({ id }: { id: string }) {
   const shop = useQuery(() => backend.getShop(id), [id]);
@@ -33,16 +33,16 @@ export function ShopView({ id }: { id: string }) {
       </div>
 
       <dl className="grid gap-8 sm:grid-cols-3">
-        <Stat label="Credentials on record" value={evidence.loading ? "…" : String(items.length)} />
-        <Stat label="Verified by every check" value={evidence.loading ? "…" : `${verified} of ${items.length}`} />
-        <Stat label="Lender checks in the last 30 days" value={checks30.data === undefined ? "…" : String(checks30.data)} hint="Stacking counter" />
+        <Stat label="Credentials on record" value={evidence.loading ? <Skeleton /> : String(items.length)} />
+        <Stat label="Verified by every check" value={evidence.loading ? <Skeleton /> : `${verified} of ${items.length}`} />
+        <Stat label="Lender checks in the last 30 days" value={checks30.data === undefined ? <Skeleton /> : String(checks30.data)} hint="Stacking counter" />
       </dl>
 
       <Section title="Trust graph">
         {graph.data && graph.data.nodes.length > 1 ? (
           <TrustGraph graph={graph.data} />
         ) : (
-          <p className="text-sm text-quiet">{graph.loading ? "Loading…" : "No credentials yet. Unknown, not bad."}</p>
+          <p className="text-sm text-quiet">{graph.loading ? <Skeleton className="h-5 w-48" /> : "No credentials yet. Unknown, not bad."}</p>
         )}
         <div className="mt-4"><GraphLegend /></div>
       </Section>

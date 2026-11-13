@@ -8,7 +8,7 @@ import { ISSUER_PERSONAS, PERSONAS, accountOf, setRole, useRole } from "@/lib/se
 import { usdc, usdcCad, formatDate } from "@/lib/format";
 import { CircleCheck, CircleDashed, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError, Section, Stat, inputClass } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError, Section, Skeleton, Stat, inputClass } from "@/components/ui";
 import { Hash } from "@/components/Hash";
 import { ActivityLog } from "@/components/ActivityLog";
 import { ApplyToJoin } from "@/components/ApplyToJoin";
@@ -43,6 +43,7 @@ export default function IssuerPage() {
   }, [me]);
 
   const [shopId, setShopId] = useState("shop-1");
+  const shopName = (id: string) => (shops.data ?? []).find((s) => s.id === id)?.name ?? id;
   const [claimType, setClaimType] = useState("buyer");
   const [amount, setAmount] = useState(45000);
   const [edited, setEdited] = useState<string | null>(null); // the summary, once you type in it yourself
@@ -123,11 +124,11 @@ export default function IssuerPage() {
         <div>
           <dt className="text-sm text-quiet">In the issuer registry</dt>
           <dd className="mt-2">
-            {registry.loading ? "…" : registry.data === null ? <Badge state="fail">Not approved</Badge> : registry.data?.active ? <Badge state="pass">Approved</Badge> : <Badge state="suspended">Suspended</Badge>}
+            {registry.loading ? <Skeleton /> : registry.data === null ? <Badge state="fail">Not approved</Badge> : registry.data?.active ? <Badge state="pass">Approved</Badge> : <Badge state="suspended">Suspended</Badge>}
           </dd>
         </div>
         <Stat label="Disputes upheld against you" value={registry.data ? `${registry.data.upheldClaims} of 2` : "–"} hint="Two suspend you" />
-        <Stat label="Your USDC balance" value={balance.data === undefined ? "…" : usdc(balance.data)} />
+        <Stat label="Your USDC balance" value={balance.data === undefined ? <Skeleton /> : usdc(balance.data)} />
       </dl>
 
       {/* Not in the registry yet: the application flow (form, emailed code, sign, wait for the admin). */}
@@ -138,9 +139,10 @@ export default function IssuerPage() {
         <Panel className="space-y-6">
           <h2 className="text-lg font-medium tracking-tight">Issue a credential</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Shop ID" hint="A shop is just a name here. It never signs or pays.">
-              <input className={inputClass} list="shop-ids" value={shopId} onChange={(e) => setShopId(e.target.value.trim())} />
-              <datalist id="shop-ids">{(shops.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</datalist>
+            <Field label="Shop" hint="A shop is just a name here. It never signs or pays.">
+              <select className={inputClass} value={shopId} onChange={(e) => setShopId(e.target.value)}>
+                {(shops.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name} ({s.id})</option>)}
+              </select>
             </Field>
             <Field label="Claim type">
               <select className={inputClass} value={claimType} onChange={(e) => { setClaimType(e.target.value); setEdited(null); }}>
@@ -165,7 +167,7 @@ export default function IssuerPage() {
 
         {kind === "PaymentProvider" ? (
         <Panel className="space-y-6">
-          <h2 className="text-lg font-medium tracking-tight">Share payment records for {shopId || "a shop"}</h2>
+          <h2 className="text-lg font-medium tracking-tight">Share payment records for {shopName(shopId)}</h2>
           <p className="text-sm text-quiet">These are the numbers the checks use to judge supplier claims (and your own). Only claims backed by payment-app records earn fees.</p>
           <Field label="Money in to the shop each month (₹)" hint="Everything that came in, including transfers back from payees.">
             <div className="grid grid-cols-3 gap-4">
@@ -203,7 +205,7 @@ export default function IssuerPage() {
         </Panel>
         ) : (
         <Panel className="space-y-6">
-          <h2 className="text-lg font-medium tracking-tight">What you say you sold {shopId || "a shop"}</h2>
+          <h2 className="text-lg font-medium tracking-tight">What you say you sold {shopName(shopId)}</h2>
           <p className="text-sm text-quiet">Shown to lenders as &ldquo;Supplier says&rdquo;. It never passes a check: payment-app records of what the shop paid your verified account do.</p>
           <Field label="Shop's purchases from you each month (₹)">
             <div className="grid grid-cols-3 gap-4">
@@ -240,7 +242,7 @@ export default function IssuerPage() {
               return (
                 <article key={c.id} className="space-y-4 rounded-(--radius-panel) border border-line bg-surface p-6">
                   <div className="flex items-start justify-between gap-4">
-                    <h3 className="text-base font-medium">{c.shopId}</h3>
+                    <h3 className="text-base font-medium">{shopName(c.shopId)} <span className="text-xs font-normal text-faint">{c.shopId}</span></h3>
                     <Badge state={v.status} />
                   </div>
                   <p className="text-base">&ldquo;{c.summary}&rdquo;</p>
@@ -253,7 +255,7 @@ export default function IssuerPage() {
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <dt className="text-quiet">Credential</dt><dd className="text-right">#{c.id}</dd>
                     <dt className="text-quiet">Expires</dt><dd className="text-right">{formatDate(c.expiresAt)}</dd>
-                    <dt className="text-quiet">Stake locked</dt><dd className="text-right">{usdc(c.stake)}</dd>
+                    <dt className="text-quiet">Stake locked</dt><dd className="text-right">{c.stake > 0 ? usdc(c.stake) : "None (released or slashed)"}</dd>
                     <dt className="text-quiet">Evidence hash</dt><dd className="text-right"><Hash value={c.claimHash} label="evidence hash" /></dd>
                   </dl>
                   <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row">

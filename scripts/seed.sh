@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Put the website's demo on the REAL contract (Stellar TESTNET): approve the 4 issuers, issue the credentials about
-# Sharma Store (shop-1) and Shop 3, and record which claims passed the backend's checks.
+# Sharma Store (shop-1) and Sunrise Mart, and record which claims passed the backend's checks.
 # Safe to run twice: it reads the chain first and only sends what is missing.
 #
 # Needs these Stellar CLI keys (they live in the CLI keystore, never in this repo). Who plays which role:
 #   admin            -> MOSAIC admin / platform        usdc_issuer -> issues the test USDC
-#   supplier         -> Issuer 1, the honest supplier  payment_provider -> Issuer 2, the payment app
-#   fake_issuer      -> Issuer 3, QuickSupply          self_dealer -> Issuer 4, the self-dealing supplier
-#   lender           -> Lender 1
+#   supplier         -> Gupta Wholesale, the honest supplier  payment_provider -> PayLink, the payment app
+#   fake_issuer      -> QuickSupply, QuickSupply          self_dealer -> Anand Traders, the self-dealing supplier
+#   lender           -> Saathi Microfinance
 # Run:  ./scripts/seed.sh [contract-alias]      (default: the contract id in deployments/testnet.json)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -63,10 +63,10 @@ print(c['id'], str(c['passed']).lower()) if c else print('none')")
 }
 
 echo "1. Approve the issuers (check 1)"
-approve supplier "Issuer 1" Supplier
-approve payment_provider "Issuer 2" PaymentProvider
-approve fake_issuer "Issuer 3" Supplier
-approve self_dealer "Issuer 4" Supplier
+approve supplier "Gupta Wholesale" Supplier
+approve payment_provider "PayLink" PaymentProvider
+approve fake_issuer "QuickSupply" Supplier
+approve self_dealer "Anand Traders" Supplier
 
 echo "2. Issue the credentials (each locks 30 USDC)"
 issue supplier shop-1 buyer "Regular buyer for 18 months, buys ₹45,000 a month, pays on time"

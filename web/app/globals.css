@@ -1,24 +1,27 @@
 @import "tailwindcss";
 
-/* One hue family: forest green on warm off-white, plus a muted red for failure only.
+/* Deck palette: navy ink on warm cream, one blue, and amber as an ACCENT only, plus a muted red for failure only.
    Structure comes from hairlines and spacing, not from shadows or boxes. */
 :root {
-  --paper: #F5F7F5;
-  --foreground: #192824;
+  --paper: #F6F1E7;
+  --foreground: #172033;
   color-scheme: light;
 }
 
 @theme inline {
   --color-paper: var(--paper);
-  --color-surface: #FFFFFF;
-  --color-wash: #EDF1EE;
+  --color-surface: #FFFDF8;
+  --color-wash: #EDE5D3;
   --color-ink: var(--foreground);
-  --color-quiet: #65746D; /* muted text: spec #718079 darkened slightly to reach 4.5:1 */
-  --color-faint: #65746D;
-  --color-line: #DFE7E1;
-  --color-pine: #245B49; /* primary */
-  --color-pine-deep: #1A4637;
-  --color-pine-soft: #E5EEE9;
+  --color-quiet: #4A5263; /* muted text: spec #718079 darkened slightly to reach 4.5:1 */
+  --color-faint: #4A5263;
+  --color-line: #E2D8C4;
+  --color-pine: #2E5E8C; /* primary blue */
+  --color-accent: #E39B2D; /* amber: highlights only */
+  --color-accent-soft: #FBEBD0;
+  --color-accent-deep: #7A4A08; /* text on accent-soft */
+  --color-pine-deep: #234A70;
+  --color-pine-soft: #DCE8F4;
   --color-clay: #B94A3C;
   --color-clay-soft: #F6E6E3;
   --font-sans: var(--font-inter), system-ui, sans-serif;
@@ -52,7 +55,7 @@ body {
   font-feature-settings: "tnum" 1; /* money and counts line up */
 }
 
-::selection { background: var(--color-pine-soft); }
+::selection { background: var(--color-accent); color: var(--foreground); }
 input, textarea { caret-color: var(--color-pine); }
 a { text-underline-offset: 4px; }
 button, a, input, select, textarea { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }

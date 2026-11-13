@@ -4,7 +4,7 @@ const ok = (n: string, cond: boolean, x = "") => { cond ? pass++ : fail++; conso
 const chk = (r: any, id: string) => r.checks.find((x: any) => x.id === id);
 
 (async () => {
-  console.log("-- issuer identity: someone using Issuer 1's GST number with their own details");
+  console.log("-- issuer identity: someone using Gupta Wholesale's GST number with their own details");
   await resetEverything();
   await withState(async () => {
     const g = b.exampleApplication("gupta")!;
@@ -18,33 +18,33 @@ const chk = (r: any, id: string) => r.checks.find((x: any) => x.id === id);
     await b.submitApplication(A.gupta.address, g);
     const r2 = (await b.getReview(A.gupta.address))!;
     ok("the real owner + registered email pass both new checks", chk(r2, "owner").result === "pass" && chk(r2, "contact").result === "pass");
-    ok("a slightly different spelling of the owner still passes (Issuer 1 Owner Kumar)", await (async () => { await b.submitApplication(A.gupta.address, { ...g, ownerName: "Issuer 1 Owner Kumar" }); return chk((await b.getReview(A.gupta.address))!, "owner").result === "pass"; })());
+    ok("a slightly different spelling of the owner still passes (Ramesh Gupta Kumar)", await (async () => { await b.submitApplication(A.gupta.address, { ...g, ownerName: "Ramesh Gupta Kumar" }); return chk((await b.getReview(A.gupta.address))!, "owner").result === "pass"; })());
     ok("matching phone alone is enough for the contact check", await (async () => { await b.submitApplication(A.gupta.address, { ...g, email: "anil.personal@gmail.com" }); return chk((await b.getReview(A.gupta.address))!, "contact").result === "pass"; })());
     await b.submitApplication(A.paylink.address, b.exampleApplication("paylink")!);
     const p = (await b.getReview(A.paylink.address))!;
-    ok("Issuer 2: owner on the RBI licence matches (Issuer 2 Owner)", chk(p, "owner").result === "pass" && chk(p, "contact").result === "pass");
+    ok("PayLink: owner on the RBI licence matches (Neha Kapoor)", chk(p, "owner").result === "pass" && chk(p, "contact").result === "pass");
     ok("8 checks in total", p.checks.length === 8);
   });
 
-  console.log("-- shop review: Shop 1 after Load demo");
+  console.log("-- shop review: Sharma Store after Load demo");
   await resetEverything();
   await withState(() => demo.loadDemo());
   await withState(async () => {
     const r = await b.getShopReview("shop-1");
     ok("verdict: looks genuine", r.verdict === "looks_genuine", r.verdictReason);
-    ok("the reason says the failed claims (Issuer 3, Issuer 4) are ignored", r.verdictReason.includes("Issuer 3") && r.verdictReason.includes("Issuer 4"));
+    ok("the reason says the failed claims (QuickSupply, Anand Traders) are ignored", r.verdictReason.includes("QuickSupply") && r.verdictReason.includes("Anand Traders"));
     ok("4 issuers, 6 months of records each", r.issuers.length === 4 && r.issuers.every((i: any) => i.months.length === 6));
-    const g = r.issuers.find((i: any) => i.issuerName === "Issuer 1")!;
-    ok("Issuer 1: credit note subtracted in August", g.months.find((m: any) => m.month === "2026-08")!.returned === 2000);
-    ok("Issuer 1: average net purchases ~Rs 45,167", Math.round(g.avgNet) === 45167, String(Math.round(g.avgNet)));
-    const q = r.issuers.find((i: any) => i.issuerName === "Issuer 3")!;
-    ok("Issuer 3: Rs 1,50,000 paid, Rs 1,40,000 back every month -> net 10,000", q.months.every((m: any) => m.paid === 150000 && m.returned === 140000 && m.net === 10000));
+    const g = r.issuers.find((i: any) => i.issuerName === "Gupta Wholesale")!;
+    ok("Gupta Wholesale: credit note subtracted in August", g.months.find((m: any) => m.month === "2026-08")!.returned === 2000);
+    ok("Gupta Wholesale: average net purchases ~Rs 45,167", Math.round(g.avgNet) === 45167, String(Math.round(g.avgNet)));
+    const q = r.issuers.find((i: any) => i.issuerName === "QuickSupply")!;
+    ok("QuickSupply: Rs 1,50,000 paid, Rs 1,40,000 back every month -> net 10,000", q.months.every((m: any) => m.paid === 150000 && m.returned === 140000 && m.net === 10000));
     ok("receipts cover all 6 months", chk(r, "coverage").result === "pass");
     ok("purchases are 77% of receipts (failed claims are not counted)", chk(r, "ratio").result === "pass" && chk(r, "ratio").reason.includes("77%"), chk(r, "ratio").reason);
     ok("issuers independent of each other", chk(r, "issuers_independent").result === "pass");
-    ok("claims backed: fails, naming Issuer 3, blaming the issuer not the shop", chk(r, "claims_backed").result === "fail" && chk(r, "claims_backed").reason.includes("not the shop"));
+    ok("claims backed: fails, naming QuickSupply, blaming the issuer not the shop", chk(r, "claims_backed").result === "fail" && chk(r, "claims_backed").reason.includes("not the shop"));
     const m = await b.getShopReview("shop-2");
-    ok("Shop 2 (no credentials): not enough evidence, never 'bad'", m.verdict === "not_enough_evidence" && m.verdictReason.includes("Unknown is not bad"));
+    ok("Verma Kirana (no credentials): not enough evidence, never 'bad'", m.verdict === "not_enough_evidence" && m.verdictReason.includes("Unknown is not bad"));
     const u = await b.getShopReview("nobody");
     ok("unknown shop id: not on file -> unknown", chk(u, "on_file").result === "unknown" && u.verdict === "not_enough_evidence");
   });
@@ -72,7 +72,7 @@ const chk = (r: any, id: string) => r.checks.find((x: any) => x.id === id);
   await withState(() => demo.loadDemo());
   await withState(async () => {
     const p = b.exampleApplication("paylink")!;
-    await b.submitApplication(A.paylink.address, { ...p, phone: "+91 97300 33333" }); // Issuer 2's application now shows Issuer 1's phone
+    await b.submitApplication(A.paylink.address, { ...p, phone: "+91 97300 33333" }); // PayLink's application now shows Gupta Wholesale's phone
     const r = await b.getShopReview("shop-1");
     ok("two issuers sharing a phone -> independence fails", chk(r, "issuers_independent").result === "fail", chk(r, "issuers_independent").reason);
     ok("-> verdict needs review", r.verdict === "needs_review");

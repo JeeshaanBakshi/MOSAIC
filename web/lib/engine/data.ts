@@ -19,17 +19,17 @@ export interface Shop extends Party {
 
 export const SHOPS: Record<string, Shop> = {
   "shop-1": {
-    id: "shop-1", name: "Shop 1", type: "Neighbourhood grocery (kirana)", since: 2019,
-    owner: "Shop 1 Owner", phone: "+91 98100 11111", bankAccount: "SBIN-0001234-55501234", address: "12 Gandhi Road, Indore, Madhya Pradesh",
+    id: "shop-1", name: "Sharma Store", type: "Neighbourhood grocery (kirana), Delhi", since: 2019,
+    owner: "Suresh Sharma", phone: "+91 98100 11111", bankAccount: "SBIN-0001234-55501234", address: "12 Gandhi Road, Karol Bagh, Delhi",
   },
   "shop-2": {
-    id: "shop-2", name: "Shop 2", type: "Neighbourhood grocery (kirana)", since: 2022,
-    owner: "Shop 2 Owner", phone: "+91 98200 22222", bankAccount: "HDFC-0005678-77700012", address: "4 Station Road, Nashik, Maharashtra",
+    id: "shop-2", name: "Verma Kirana", type: "Neighbourhood grocery (kirana), Nashik", since: 2022,
+    owner: "Anil Verma", phone: "+91 98200 22222", bankAccount: "HDFC-0005678-77700012", address: "4 Station Road, Nashik, Maharashtra",
   },
-  // A shop that Issuer 3 (QuickSupply) listed itself and alone vouches for. It has no payment-app receipts.
+  // A shop that QuickSupply (QuickSupply) listed itself and alone vouches for. It has no payment-app receipts.
   "shop-3": {
-    id: "shop-3", name: "Shop 3", type: "New shop listed by Issuer 3", since: 2026,
-    owner: "Shop 3 Owner", phone: "+91 98300 33333", bankAccount: "PUNB-0004321-12345678", address: "7 Link Road, Indore, Madhya Pradesh",
+    id: "shop-3", name: "Sunrise Mart", type: "Brand-new shop, listed by QuickSupply", since: 2026,
+    owner: "Deepak Rao", phone: "+91 98300 33333", bankAccount: "PUNB-0004321-12345678", address: "7 Link Road, Indore, Madhya Pradesh",
   },
 };
 
@@ -45,22 +45,22 @@ export interface RegistryRecord {
 }
 
 export const GST_REGISTRY: Record<string, RegistryRecord & { status: "Active" | "Cancelled" }> = {
-  "23AABCG4521K1Z7": { legalName: "Issuer 1 Traders", status: "Active", owner: "Issuer 1 Owner", email: "issuer1@issuer1.example", phone: "+91 97300 33333" },
-  "23AAGFQ7788M1Z2": { legalName: "Issuer 3", status: "Active", owner: "Issuer 3 Owner", email: "issuer3@issuer3.example", phone: "+91 98100 77777" },
-  "23AAHCS1234R1Z9": { legalName: "Issuer 4", status: "Active", owner: "Issuer 4 Owner", email: "issuer4@issuer4.example", phone: "+91 98100 11111" }, // same phone as Shop 1: self-dealing
+  "23AABCG4521K1Z7": { legalName: "Gupta Wholesale Traders", status: "Active", owner: "Ramesh Gupta", email: "issuer1@issuer1.example", phone: "+91 97300 33333" },
+  "23AAGFQ7788M1Z2": { legalName: "QuickSupply", status: "Active", owner: "Vikram Malhotra", email: "issuer3@issuer3.example", phone: "+91 98100 77777" },
+  "23AAHCS1234R1Z9": { legalName: "Anand Traders", status: "Active", owner: "Anand Mehra", email: "issuer4@issuer4.example", phone: "+91 98100 11111" }, // same phone as Sharma Store: self-dealing
   "27AACCD9911P1Z3": { legalName: "Dormant Foods", status: "Cancelled", owner: "Ravi Desai", email: "ravi@dormantfoods.example", phone: "+91 99000 55555" },
 };
 
 export const RBI_LICENCES: Record<string, RegistryRecord & { status: "Authorized" | "Revoked" }> = {
-  "PA-RBI-2023-0457": { legalName: "Issuer 2 Technologies Pvt Ltd", status: "Authorized", owner: "Issuer 2 Owner", email: "issuer2@issuer2.example", phone: "+91 80000 44444" },
+  "PA-RBI-2023-0457": { legalName: "PayLink Technologies Pvt Ltd", status: "Authorized", owner: "Neha Kapoor", email: "issuer2@issuer2.example", phone: "+91 80000 44444" },
 };
 
 /** Sales history on file per registration number. `counterparties` = shops sold to (suppliers) or merchants served (payment providers). */
 export const TRADING_RECORDS: Record<string, { months: number; counterparties: number }> = {
   "23AABCG4521K1Z7": { months: 18, counterparties: 42 },
   "PA-RBI-2023-0457": { months: 24, counterparties: 5200 },
-  "23AAGFQ7788M1Z2": { months: 12, counterparties: 30 }, // Issuer 3 is a real supplier that inflates its claim
-  "23AAHCS1234R1Z9": { months: 12, counterparties: 1 }, // Issuer 4 really only sells to one shop
+  "23AAGFQ7788M1Z2": { months: 12, counterparties: 30 }, // QuickSupply is a real supplier that inflates its claim
+  "23AAHCS1234R1Z9": { months: 12, counterparties: 1 }, // Anand Traders really only sells to one shop
 };
 
 export const BLACKLIST = new Set<string>(["29AAAAB0000A1Z5"]);

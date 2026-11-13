@@ -13,7 +13,7 @@ import { cad, formatDate } from "@/lib/format";
 /** An amount in rupees with its rough Canadian-dollar equivalent. */
 const money = (inr: number) => `${rs(inr)} (about ${cad(inr)})`;
 import { ArrowUpRight, CircleCheck, CircleX } from "lucide-react";
-import { Badge, Button, Field, PageTitle, Panel, Rows, Section, Stat, inputClass } from "@/components/ui";
+import { Badge, Button, Field, PageTitle, Panel, Rows, Section, Skeleton, Stat, inputClass } from "@/components/ui";
 import { errorToast } from "@/components/toast";
 import { toast } from "sonner";
 
@@ -25,8 +25,8 @@ export default function MyShopPage() {
       <div className="space-y-8">
         <PageTitle title="This page is for shopkeepers">Pick a shop.</PageTitle>
         <div className="flex flex-wrap gap-4">
-          <Button onClick={() => setRole("sharma")}>Shop 1</Button>
-          <Button variant="secondary" onClick={() => setRole("mehta")}>Shop 2 (new, no credentials)</Button>
+          <Button onClick={() => setRole("sharma")}>Sharma Store</Button>
+          <Button variant="secondary" onClick={() => setRole("mehta")}>Verma Kirana (new, no credentials)</Button>
         </div>
       </div>
     );
@@ -95,9 +95,9 @@ function ShopDashboard({ shopId }: { shopId: string }) {
                   : r.verdictReason}
               </p>
             </>
-          ) : <p className="text-sm text-quiet">Loading…</p>}
+          ) : <Skeleton className="block h-24 w-full" />}
         </div>
-        <Stat label="Lender checks in the last 30 days" value={checks30.data === undefined ? "…" : String(checks30.data)} />
+        <Stat label="Lender checks in the last 30 days" value={checks30.data === undefined ? <Skeleton /> : String(checks30.data)} />
       </section>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">

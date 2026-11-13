@@ -35,7 +35,7 @@ ok("application form is shown (not in registry)", await page.getByText("Join the
 await click("Sign and issue");
 ok("issuing is rejected: IssuerNotApproved", (await toast()).includes("IssuerNotApproved"));
 
-console.log("-- form validation + emailed code (Issuer 1)");
+console.log("-- form validation + emailed code (Gupta Wholesale)");
 await click("Submit and email me a code");
 ok("empty form is refused", (await toast()).includes("fill in every field"), (await toast()).slice(0, 60));
 await click("Fill in an example", { wait: 300 });
@@ -64,7 +64,7 @@ ok("request sent toast", (await toast()).includes("Request sent"), (await toast(
 ok("card says waiting for the admin", await page.getByText("waiting for the admin").first().isVisible());
 ok("on-chain only a hash", await page.getByText("On-chain fingerprint").isVisible());
 
-console.log("-- Issuer 2 and Issuer 4 apply");
+console.log("-- PayLink and Anand Traders apply");
 const apply = async (role, label) => {
   await go("/issuer"); await as(role);
   await click(`Fill in an example`, { wait: 300 });
@@ -72,37 +72,37 @@ const apply = async (role, label) => {
   await page.getByPlaceholder("123456").fill(await otp()); await click("Verify email");
   await click("Sign and send request");
 };
-await apply("paylink", "Issuer 2"); await apply("selfdeal", "Issuer 4");
-ok("Issuer 2's form asked for an RBI licence", true);
+await apply("paylink", "PayLink"); await apply("selfdeal", "Anand Traders");
+ok("PayLink's form asked for an RBI licence", true);
 
 console.log("-- admin sees 3 applications with automatic checks");
 await go("/admin"); await as("admin");
 await page.waitForSelector("text=Recommend approve", { timeout: 15000 }); await page.waitForTimeout(1500);
 ok("3 applications waiting", await page.getByText("Applications to join (3 waiting)").isVisible());
 ok("two are 'Recommend approve'", (await page.getByText("Recommend approve").count()) === 2);
-ok("Issuer 4 is 'Recommend reject'", (await page.getByText("Recommend reject").count()) === 1);
-ok("Issuer 4: independence reason names the shop", await page.getByText("is also the phone of Shop 1").isVisible());
-ok("Issuer 4: trading history reason has the numbers", await page.getByText("Sold to 1 shop over 12 months").isVisible());
-ok("Issuer 2: RBI licence check", await page.getByText("is an authorized payment company").isVisible());
-ok("Issuer 1: bank-name match shows a percentage", await page.getByText("100% match").first().isVisible());
+ok("Anand Traders is 'Recommend reject'", (await page.getByText("Recommend reject").count()) === 1);
+ok("Anand Traders: independence reason names the shop", await page.getByText("is also the phone of Sharma Store").isVisible());
+ok("Anand Traders: trading history reason has the numbers", await page.getByText("Sold to 1 shop over 12 months").isVisible());
+ok("PayLink: RBI licence check", await page.getByText("is an authorized payment company").isVisible());
+ok("Gupta Wholesale: bank-name match shows a percentage", await page.getByText("100% match").first().isVisible());
 await shot("2-admin-applications");
 const quickCard = page.locator("[data-application]", { hasText: "Recommend reject" }).first();
-ok("Issuer 4: Approve is blocked until a manual review", await quickCard.getByRole("button", { name: "Approve after manual review" }).isDisabled());
+ok("Anand Traders: Approve is blocked until a manual review", await quickCard.getByRole("button", { name: "Approve after manual review" }).isDisabled());
 ok("it says why", await page.getByText("Do a manual review and write a note first").isVisible());
 
-console.log("-- reject Issuer 4, who then applies again");
+console.log("-- reject Anand Traders, who then applies again");
 await quickCard.getByRole("button", { name: "Reject" }).click(); await page.waitForTimeout(1300);
 ok("rejection toast", (await toast()).includes("rejected"), (await toast()).slice(0, 40));
 ok("2 left waiting", await page.getByText("Applications to join (2 waiting)").isVisible());
 await go("/issuer"); await as("selfdeal");
-ok("Issuer 4 sees it was rejected + Apply again", await page.getByText("The admin rejected your request").isVisible());
+ok("Anand Traders sees it was rejected + Apply again", await page.getByText("The admin rejected your request").isVisible());
 await click("Apply again"); await click("Fill in an example", { wait: 300 });
 await click("Submit and email me a code"); await page.getByPlaceholder("123456").fill(await otp()); await click("Verify email"); await click("Sign and send request");
 ok("re-applied: waiting again", await page.getByText("waiting for the admin").first().isVisible());
 
-console.log("-- admin approves the clean ones, and Issuer 4 only after a manual review");
+console.log("-- admin approves the clean ones, and Anand Traders only after a manual review");
 await go("/admin"); await as("admin"); await page.waitForSelector("text=Recommend approve", { timeout: 15000 }); await page.waitForTimeout(1500);
-ok("Issuer 1 + Issuer 2: approving needs no manual review", (await page.getByText("All automatic checks passed").count()) === 2);
+ok("Gupta Wholesale + PayLink: approving needs no manual review", (await page.getByText("All automatic checks passed").count()) === 2);
 await page.locator("[data-application]", { hasText: "Recommend approve" }).getByRole("button", { name: "Approve", exact: true }).first().click(); await page.waitForTimeout(1400);
 await page.locator("[data-application]", { hasText: "Recommend approve" }).getByRole("button", { name: "Approve", exact: true }).first().click(); await page.waitForTimeout(1400);
 ok("two issuers in the registry", (await page.locator("table:has-text('Disputes upheld') tbody tr").count()) >= 2);
@@ -128,7 +128,7 @@ await issue("gupta"); await issue("paylink"); await issue("selfdeal", 200000);
 ok("contract holds 90 USDC of stakes", (await bal("contract")) === "90 USDC", await bal("contract"));
 await go("/lender"); await as("asha"); await page.getByText("Check any shop").click(); await click("Verify (1 USDC)"); await page.waitForSelector("text=Where your fee went"); await page.waitForTimeout(1500);
 ok("no claim passed (no payment-app records yet): lender pays only the platform's 0.3", (await bal("asha")) === "999.7 USDC" && (await bal("admin")) === "0.3 USDC", await bal("asha"));
-ok("Issuer 4 fails the fraud checks 2, 3, 4", (await page.locator("text=Issuer shares phone").count()) >= 1);
+ok("Anand Traders fails the fraud checks 2, 3, 4", (await page.locator("text=Issuer shares phone").count()) >= 1);
 await click("Open dispute", { last: true });
 await click("Report a default");
 ok("the lender can report a default", (await toast()).includes("reported as defaulted"), (await toast()).slice(0, 60));
@@ -148,7 +148,7 @@ ok("log never shows a full email address or a code", !logText.includes("issuer1@
 console.log("-- Load demo still works through the application path");
 await go("/admin"); await as("admin");
 await click("Load demo", { wait: 4500 });
-ok("Load demo: 5 credentials staked", (await bal("contract")) === "150 USDC", await bal("contract"));
+ok("Load demo: 5 credentials staked, 30 USDC of it already slashed (Sunrise Mart)", (await bal("contract")) === "120 USDC", await bal("contract"));
 await go("/issuer"); await as("gupta");
 ok("approved issuer sees the issue form, no application card", (await page.getByText("Join the issuer registry").count()) === 0);
 
@@ -156,25 +156,28 @@ ok("approved issuer sees the issue form, no application card", (await page.getBy
 console.log("-- the fraud demo: landing -> Sharma, then the Lender page cases");
 await go("/"); await as("admin");
 ok("landing page has 'Try the demo'", await page.getByRole("button", { name: /Try the demo with Sharma Store/ }).isVisible());
-await click("Try the demo with Sharma Store", { wait: 1500 });
-await page.waitForTimeout(1000);
-ok("it opens My shop", page.url().endsWith("/my-shop"), page.url());
-ok("...as Sharma (Shop 1 is on the page)", (await page.locator("body").innerText()).includes("Shop 1"));
+ok("landing: 'Built on Stellar' links the contract and 3 real transactions", (await page.getByRole("heading", { name: "Built on Stellar" }).isVisible()) && (await page.locator('a[href*="stellar.expert/explorer/testnet/tx/"]').count()) === 3 && (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446"]').count()) === 1);
+ok("landing: 5 steps in How it works", (await page.locator("#how li").count()) === 5);
+await click("Try the demo with Sharma Store", { wait: 2500 });
+ok("it opens the lender view", page.url().includes("/lender"), page.url());
+ok("...with Sharma Store already selected, ready to check", await page.getByRole("button", { name: /Check the shop/ }).isVisible());
+ok("...acting as the lender", (await page.locator('select[aria-label="You are"]:visible').inputValue()) === "asha");
+ok("the testnet banner is on every page", await page.getByText("real Stellar testnet transactions, test USDC, made-up shop data").first().isVisible());
 await go("/lender"); await as("asha"); await page.waitForTimeout(800);
 ok("lender sees both demo loan requests", (await page.getByRole("button", { name: "Review" }).count()) === 2);
 ok("On-chain panel: contract linked to Stellar Expert (testnet)", (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG"]').count()) >= 1);
 ok("On-chain panel: says simulation only when the server has no keys", await page.getByText("Simulation only: no keys on this server").isVisible());
 ok("On-chain panel: a read-only wallet button, optional", await page.getByRole("button", { name: /Connect wallet \(read-only\)/ }).isVisible());
-await page.getByRole("button", { name: "Review" }).nth(1).click(); await page.waitForTimeout(600); // Shop 3, the fake shop
+await page.getByRole("button", { name: "Review" }).nth(1).click(); await page.waitForTimeout(600); // Sunrise Mart, the fake shop
 await click("Check the shop", { wait: 3500 });
 ok("case 2: fake shop says it needs an independent payment app, Unknown", await page.getByText("Needs an independent payment app. Unknown").first().isVisible());
 ok("case 2: no limit, no suggestion", (await page.getByText("Not enough evidence", { exact: true }).first().isVisible()) && (await page.getByText("No suggestion: not enough verified evidence").isVisible()));
 await go("/lender"); await as("asha"); await page.waitForTimeout(800);
-await page.getByRole("button", { name: "Review" }).first().click(); await page.waitForTimeout(600); // Shop 1, Sharma
+await page.getByRole("button", { name: "Review" }).first().click(); await page.waitForTimeout(600); // Sharma Store, Sharma
 await click("Check the shop", { wait: 3500 });
 ok("case 1: Sharma gets 'Recommend approve' and a limit", (await page.getByText("Recommend approve").first().isVisible()) && (await page.getByText("Approve: ₹20,000 is within the limit of ₹22,500").isVisible()));
-ok("cases 3 and 4: failed claims are named as not counted", (await page.getByText(/Not counted: Issuer 3: net flow failed/).first().isVisible()) && (await page.getByText(/Issuer 4: independence failed/).first().isVisible()));
-ok("each check shows its numbers and whose data it used", (await page.getByText(/Numbers: Claimed ₹1,50,000\/month/).count()) >= 1 && (await page.getByText(/Payment app Issuer 2/).count()) >= 1);
+ok("cases 3 and 4: failed claims are named as not counted", (await page.getByText(/Not counted: QuickSupply: net flow failed/).first().isVisible()) && (await page.getByText(/Anand Traders: independence failed/).first().isVisible()));
+ok("each check shows its numbers and whose data it used", (await page.getByText(/Numbers: Claimed ₹1,50,000\/month/).count()) >= 1 && (await page.getByText(/Payment app PayLink/).count()) >= 1);
 ok("no stacking warning yet", (await page.getByText("Possible loan stacking").count()) === 0 || (await page.getByText("Possible loan stacking.").count()) === 0);
 await click("Demo: 2 other lenders also check this shop", { wait: 2500 });
 ok("case 5: stacking warning is shown", await page.getByText("Possible loan stacking.").first().isVisible());
@@ -234,17 +237,17 @@ await go("/admin"); await as("admin"); await page.waitForTimeout(1500);
 await page.getByRole("link", { name: "Shop checks" }).click(); await page.waitForTimeout(800);
 const shops = page.locator("#shops");
 await shops.getByText("Looks genuine").first().waitFor({ timeout: 15000 });
-ok("Shop 1: 'Looks genuine'", await shops.getByText("Looks genuine").first().isVisible());
-ok("verdict explains the failed claims are ignored", await shops.getByText("The claim from Issuer 3, Issuer 4 is ignored").isVisible());
+ok("Sharma Store: 'Looks genuine'", await shops.getByText("Looks genuine").first().isVisible());
+ok("verdict explains the failed claims are ignored", await shops.getByText("The claim from QuickSupply, Anand Traders is ignored").isVisible());
 ok("purchases vs receipts: 77%", await shops.getByText(/are 77% of receipts/).isVisible());
-ok("receipts table: Issuer 1's Rs 2,000 credit note in Aug", (await shops.locator("tr", { hasText: "Aug 2026" }).allInnerTexts()).some((t) => t.includes("−₹2,000")));
-ok("receipts table: Issuer 3's Rs 1,40,000 coming straight back every month", (await shops.getByText("−₹1,40,000").count()) >= 6);
+ok("receipts table: Gupta Wholesale's Rs 2,000 credit note in Aug", (await shops.locator("tr", { hasText: "Aug 2026" }).allInnerTexts()).some((t) => t.includes("−₹2,000")));
+ok("receipts table: QuickSupply's Rs 1,40,000 coming straight back every month", (await shops.getByText("−₹1,40,000").count()) >= 6);
 ok("blame goes to the issuer, not the shop", await shops.getByText(/That's evidence against the issuer, not the shop/).isVisible());
 await page.screenshot({ path: `${S}/onb-shopcheck.png`, fullPage: true });
-await shops.getByRole("tab", { name: "Shop 2" }).click(); await page.waitForTimeout(1500);
-ok("Shop 2: not enough evidence (Unknown, not bad)", await shops.getByText("Not enough evidence, which is not bad").isVisible());
+await shops.getByRole("tab", { name: "Verma Kirana" }).click(); await page.waitForTimeout(1500);
+ok("Verma Kirana: not enough evidence (Unknown, not bad)", await shops.getByText("Not enough evidence, which is not bad").isVisible());
 
-console.log("-- someone using Issuer 1's GST number with their own details");
+console.log("-- someone using Gupta Wholesale's GST number with their own details");
 await go("/?reset=1"); await page.waitForTimeout(1500);
 await go("/issuer"); await as("gupta");
 await click("Fill in an example", { wait: 300 });
@@ -254,7 +257,7 @@ await page.getByLabel("Email").fill("someone@example.org");
 await click("Submit and email me a code", { wait: 1500 });
 await page.getByPlaceholder("123456").fill(await otp()); await click("Verify email"); await click("Sign and send request");
 await go("/admin"); await as("admin"); await page.waitForSelector("text=Recommend reject", { timeout: 15000 }); await page.waitForTimeout(800);
-ok("admin sees: not the owner on record", await page.getByText('"Jeeshaan Bakshi" is not the owner on record "Issuer 1 Owner"').isVisible());
+ok("admin sees: not the owner on record", await page.getByText('"Jeeshaan Bakshi" is not the owner on record "Ramesh Gupta"').isVisible());
 ok("admin sees: contact doesn't match the registry", await page.getByText(/Neither the email nor the phone matches the contact on record/).isVisible());
 ok("approve is blocked until a manual review", await page.getByRole("button", { name: "Approve after manual review" }).isDisabled());
 await page.screenshot({ path: `${S}/onb-impostor.png`, fullPage: true });
@@ -262,7 +265,7 @@ await page.screenshot({ path: `${S}/onb-impostor.png`, fullPage: true });
 
 console.log("-- cleaner pages: tools, balances and logs only on Admin");
 await go("/"); 
-ok("home asks 'Who are you?'", await page.getByText("Who are you?").isVisible());
+ok("home offers the four roles (Explore as)", await page.getByText("Explore as").isVisible());
 ok("home has no long walkthrough any more", (await page.getByText("Try the whole flow").count()) === 0);
 await go("/my-shop");
 ok("no Reset / Load demo buttons outside Admin", (await page.getByRole("button", { name: "Reset all data" }).count()) === 0 && (await page.getByRole("button", { name: "Load demo" }).count()) === 0);
@@ -274,8 +277,8 @@ console.log("-- the shopkeeper asks for a loan, the lender decides");
 await go("/?reset=1"); await page.waitForTimeout(1500);
 await go("/admin"); await as("admin"); await click("Load demo", { wait: 4500 });
 await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1500);
-ok("Shop 1: 'Lenders will see a genuine, active business'", await page.getByText("Lenders will see a genuine, active business").isVisible());
-ok("Issuer 1 + Issuer 2 count, Issuers 3 and 4 don't", (await page.getByText("Counts", { exact: true }).count()) === 2 && (await page.getByText("Does not count", { exact: true }).count()) === 2);
+ok("Sharma Store: 'Lenders will see a genuine, active business'", await page.getByText("Lenders will see a genuine, active business").isVisible());
+ok("Gupta Wholesale + PayLink count, QuickSupply and Anand Traders don't", (await page.getByText("Counts", { exact: true }).count()) === 2 && (await page.getByText("Does not count", { exact: true }).count()) === 2);
 ok("the demo's request is waiting", await page.getByText("Waiting for a lender").first().isVisible());
 await click("Withdraw", { wait: 1200 });
 ok("withdrawn", await page.getByText("Withdrawn").first().isVisible());
@@ -288,7 +291,7 @@ ok("request sent", (await toast()).includes("Request sent"));
 await page.screenshot({ path: `${S}/onb-myshop.png`, fullPage: true });
 
 await go("/lender"); await as("asha"); await page.waitForTimeout(1200);
-ok("the lender sees the request", await page.getByText(/Shop 1 asks for ₹30,000/).isVisible());
+ok("the lender sees the request", await page.getByText(/Sharma Store asks for ₹30,000/).isVisible());
 await click("Review", { exact: true, wait: 600 });
 const before2 = await bal("asha");
 await click("Check the shop (1 USDC)", { wait: 2500 });
@@ -310,7 +313,7 @@ ok("the shopkeeper sees 'Approved ₹22,500'", await page.getByText("Approved �
 
 console.log("-- a new shop with no credentials");
 await go("/my-shop"); await as("mehta"); await page.waitForTimeout(1200);
-ok("Shop 2: 'Lenders can't judge you yet (that's not bad)'", await page.getByText("Lenders can't judge you yet, and that is not bad").isVisible());
+ok("Verma Kirana: 'Lenders can't judge you yet (that's not bad)'", await page.getByText("Lenders can't judge you yet, and that is not bad").isVisible());
 await page.getByLabel("What is it for?").fill("New fridge");
 await page.getByLabel("How much").fill("10000");
 await click("Ask for ₹10,000", { wait: 1200 });
@@ -319,7 +322,7 @@ await click("Review", { exact: true, wait: 600 }); await click("Check the shop (
 ok("lender: 'Not enough evidence'", await page.getByText("Not enough evidence", { exact: true }).isVisible());
 await click("Decline", { wait: 1500 });
 await go("/my-shop"); await as("mehta"); await page.waitForTimeout(1200);
-ok("Shop 2 sees 'Declined'", await page.getByText("Declined").first().isVisible());
+ok("Verma Kirana sees 'Declined'", await page.getByText("Declined").first().isVisible());
 await go("/admin"); await as("admin"); await page.getByText("System log (").click(); await page.waitForTimeout(600);
 const lg = await page.locator("details:has-text('System log') ul").innerText();
 ok("loan requests and decisions are in the system log", ["loan_requested", "loan_withdrawn", "loan_approved", "loan_declined"].every((e) => lg.includes(e)));

@@ -7,7 +7,7 @@ import { CONTRACT_ADDRESS, contract, nameOf, type Dispute, type Issuer } from "@
 import { useQuery } from "@/lib/hooks";
 import { PERSONAS, accountOf, setRole, useRole } from "@/lib/session";
 import { usdc, short } from "@/lib/format";
-import { Badge, Button, Notice, PageTitle, Panel, Rows, Section } from "@/components/ui";
+import { Badge, Button, Notice, PageTitle, Panel, Rows, Section, Skeleton } from "@/components/ui";
 import { Applications } from "@/components/Applications";
 import { ShopReviewPanel } from "@/components/ShopReviewPanel";
 import { TestTools } from "@/components/TestTools";
@@ -120,7 +120,7 @@ export default function AdminPage() {
 
       <ShopReviewPanel />
 
-      <Section id="disputes" title="Disputes" aside={`Stakes held by the contract: ${escrow.data === undefined ? "…" : usdc(escrow.data)}`}>
+      <Section id="disputes" title="Disputes" aside={<>Stakes held by the contract: {escrow.data === undefined ? <Skeleton className="h-4 w-16" /> : usdc(escrow.data)}</>}>
         {(disputes.data ?? []).length === 0 && <p className="text-sm text-quiet">No disputes yet. Lenders open them from the Lender page.</p>}
         <Rows>
           {(disputes.data ?? []).map((d) => {
