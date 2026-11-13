@@ -32,7 +32,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const desktop = useIsDesktop(); // render ONE navigation, never both: two role switchers in the page would confuse screen readers and tests
   return (
     <div className="min-h-dvh lg:pl-64">
-      <p className="border-b border-accent/30 bg-accent-soft px-4 py-2 text-center text-xs leading-relaxed text-accent-deep sm:text-sm">
+      <p className="border-b border-line bg-pine-soft px-4 py-2 text-center text-xs leading-relaxed text-pine-deep sm:text-sm">
         <b className="font-medium">Testnet prototype:</b> real Stellar testnet transactions, test USDC, made-up shop data.
       </p>
       {/* Large screens: fixed rail */}
@@ -66,10 +66,10 @@ function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2 text-ink">
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
-        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#E39B2D" />
-        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".55" />
-        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".3" />
-        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#2E5E8C" opacity=".12" />
+        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#245B49" />
+        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#245B49" opacity=".55" />
+        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#245B49" opacity=".3" />
+        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#245B49" opacity=".12" />
       </svg>
       <span className="text-lg font-medium tracking-tight">Mosaic</span>
     </Link>
@@ -119,7 +119,7 @@ function NavLinks({ path, onNavigate }: { path: string; onNavigate: () => void }
     const active = path.startsWith(href) || (href === "/my-shop" && path.startsWith("/shop/"));
     return (
       <Link key={href} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined}
-        className={`flex min-h-10 items-center gap-4 rounded-(--radius-control) px-4 text-sm font-medium transition-colors ${active ? "border-l-2 border-accent bg-pine-soft text-pine-deep" : "text-quiet hover:bg-wash hover:text-ink"}`}>
+        className={`flex min-h-10 items-center gap-4 rounded-(--radius-control) px-4 text-sm font-medium transition-colors ${active ? "bg-pine-soft text-pine-deep" : "text-quiet hover:bg-wash hover:text-ink"}`}>
         <Icon className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
         {label}
       </Link>

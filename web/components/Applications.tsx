@@ -108,7 +108,7 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
             {checks.map((c) => (
               <li key={c.id}>
                 <label className="flex items-start gap-4 text-sm">
-                  <input type="checkbox" className="mt-1 size-4 accent-[#2E5E8C]" checked={!!checked[c.id]} onChange={(e) => setChecked((x) => ({ ...x, [c.id]: e.target.checked }))} />
+                  <input type="checkbox" className="mt-1 size-4 accent-[#245B49]" checked={!!checked[c.id]} onChange={(e) => setChecked((x) => ({ ...x, [c.id]: e.target.checked }))} />
                   <span>I checked <span className="font-medium">{c.label}</span> myself{c.result !== "pass" && <span className="ml-1 text-clay">(automatic result: {c.result === "fail" ? "failed" : "unknown"})</span>}</span>
                 </label>
               </li>

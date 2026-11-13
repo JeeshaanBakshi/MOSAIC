@@ -299,7 +299,7 @@ function VerdictCard({ decision, passed, total, paid, verified }: {
   decision: { outcome: LoanOutcome; limitInr: number; summary: string };
   passed: number; total: number; paid?: number; verified: Verified | null;
 }) {
-  const tone = { approve: "bg-pine-soft", review: "bg-accent-soft", not_enough_evidence: "bg-wash" }[decision.outcome];
+  const tone = { approve: "bg-pine-soft", review: "bg-wash", not_enough_evidence: "bg-wash" }[decision.outcome];
   const headline = decision.outcome === "approve" ? `Approve up to ${rs(decision.limitInr)}`
     : decision.outcome === "review" ? "Needs your judgement" : "Unknown, not bad";
   const sub = decision.outcome === "review" ? `Suggested limit ${rs(decision.limitInr)}. ${decision.summary}`

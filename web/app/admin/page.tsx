@@ -65,7 +65,7 @@ export default function AdminPage() {
   return (
     <div className="space-y-12">
       <PageTitle title="Admin">
-        Approve issuers and settle disputes. Two upheld disputes suspend an issuer.
+        Approve issuers. Settle disputes.
       </PageTitle>
 
       <nav aria-label="On this page" className="-mx-6 flex gap-1 overflow-x-auto border-b border-line px-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0">
@@ -77,7 +77,6 @@ export default function AdminPage() {
       {!isAdmin && (
         <Notice tone="warn">
           You are {PERSONAS[role].label}, not the admin. <button className="font-medium underline underline-offset-4" onClick={() => setRole("admin")}>Switch to the admin</button>.
-          The buttons still work, so you can see the contract refuse you with NotAdmin.
         </Notice>
       )}
 
@@ -85,7 +84,7 @@ export default function AdminPage() {
 
       <div id="applications" className="scroll-mt-24"><Applications /></div>
 
-      <Section id="issuers" title="Issuer registry" aside="Fraud check 1: only approved issuers can sign">
+      <Section id="issuers" title="Issuer registry" aside="Check 1: only approved issuers can sign">
         {(issuers.data ?? []).length === 0 ? (
           <p className="text-sm text-quiet">No issuers yet. Until an application is approved, the contract rejects every credential.</p>
         ) : (
@@ -153,12 +152,16 @@ export default function AdminPage() {
 
       <OnChainPanel />
 
-      <TestTools />
-
-      <Section id="logs" title="Logs" className="space-y-6">
-        <ActivityLog />
-        <SystemLog />
-      </Section>
+      <details className="group rounded-(--radius-panel) border border-line bg-surface p-6">
+        <summary className="cursor-pointer list-none text-lg font-medium tracking-tight">Test tools and logs <span className="text-sm font-normal text-quiet">(for the demo)</span></summary>
+        <div className="mt-6 space-y-10">
+          <TestTools />
+          <Section id="logs" title="Logs" className="space-y-6">
+            <ActivityLog />
+            <SystemLog />
+          </Section>
+        </div>
+      </details>
     </div>
   );
 }

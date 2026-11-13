@@ -15,6 +15,8 @@ const money = (inr: number) => `${rs(inr)} (about ${cad(inr)})`;
 import { ArrowUpRight, CircleCheck, CircleX } from "lucide-react";
 import { Badge, Button, Field, PageTitle, Panel, Rows, Section, Skeleton, Stat, inputClass } from "@/components/ui";
 import { errorToast } from "@/components/toast";
+import { LoadDemoButton } from "@/components/LoadDemoButton";
+import { ShopView } from "@/app/shop/[id]/ShopView";
 import { toast } from "sonner";
 
 export default function MyShopPage() {
@@ -79,9 +81,12 @@ function ShopDashboard({ shopId }: { shopId: string }) {
 
   return (
     <div className="space-y-12">
-      <PageTitle title={shop.data?.name ?? shopId}>
-        Who vouches for you, and your loan requests.
-      </PageTitle>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageTitle title={shop.data?.name ?? shopId}>Your public profile first, then your loan.</PageTitle>
+        <LoadDemoButton />
+      </div>
+
+      <ShopView id={shopId} embedded />
 
       <section className="grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
         <div className="max-w-xl">
@@ -159,9 +164,6 @@ function ShopDashboard({ shopId }: { shopId: string }) {
               </div>
             ))}
           </Rows>
-          <Link href={`/shop/${shopId}`} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-pine underline-offset-4 hover:underline">
-            See your public profile <ArrowUpRight className="size-4" aria-hidden />
-          </Link>
         </Section>
       </div>
 

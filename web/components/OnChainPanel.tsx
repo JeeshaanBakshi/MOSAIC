@@ -77,20 +77,24 @@ export function OnChainPanel() {
     <Panel className="space-y-6" id="onchain">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="text-lg font-medium tracking-tight">On-chain</h2>
-        <Badge state="pass">Stellar testnet</Badge>
-        {chain === "mirroring_to_testnet" && <Badge state="pass">Actions are sent to the contract</Badge>}
-        {chain === "simulation_only" && <Badge state="open">Simulation only: no keys on this server</Badge>}
+        {chain === "mirroring_to_testnet" && <Badge state="pass">Live on Stellar testnet</Badge>}
+        {chain === "simulation_only" && <Badge state="open">Demo mode</Badge>}
       </div>
+      <p className="max-w-2xl text-sm leading-relaxed text-quiet">
+        {chain === "mirroring_to_testnet"
+          ? "Each check, dispute and slash on this site is also sent to the real MOSAIC contract on Stellar testnet. Every one shows a link you can open on Stellar Expert."
+          : "The contract below is real and deployed on Stellar testnet. In this demo mode the site runs the same rules without sending transactions, so nothing here is on-chain yet. Real transactions are listed in the README."}
+      </p>
       <dl className="grid gap-4 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-8">
         <dt className="text-quiet">Contract</dt>
         <dd className="min-w-0"><a href={contractUrl} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{CONTRACT_ID}<ExternalLink className="ml-1 inline size-3" aria-hidden /><span className="sr-only"> on Stellar Expert</span></a></dd>
         <dt className="text-quiet">Network</dt>
-        <dd>Stellar testnet (test USDC, no real money)</dd>
+        <dd>Stellar testnet, test USDC only</dd>
       </dl>
       <div>
         <h3 className="text-sm font-medium">Real transactions this session ({real.length})</h3>
         {real.length === 0 ? (
-          <p className="mt-2 text-sm text-quiet">None yet. {chain === "simulation_only" ? "This server has no testnet keys, so every transaction here is simulated." : "Issue a credential, check a shop or revoke one, and its real transaction appears here."}</p>
+          <p className="mt-2 text-sm text-quiet">None yet. {chain === "simulation_only" ? "Demo mode: transactions are simulated." : "Check a shop, dispute a claim or revoke one, and its real transaction appears here."}</p>
         ) : (
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
             {real.map((a) => (

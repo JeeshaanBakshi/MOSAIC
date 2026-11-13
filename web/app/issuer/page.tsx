@@ -204,26 +204,36 @@ export default function IssuerPage() {
           </Button>
         </Panel>
         ) : (
-        <Panel className="space-y-6">
-          <h2 className="text-lg font-medium tracking-tight">What you say you sold {shopName(shopId)}</h2>
-          <p className="text-sm text-quiet">Shown to lenders as &ldquo;Supplier says&rdquo;. It never passes a check: payment-app records of what the shop paid your verified account do.</p>
-          <Field label="Shop's purchases from you each month (₹)">
-            <div className="grid grid-cols-3 gap-4">
-              {MONTH_LABELS.map((m, i) => (
-                <label key={m} className="text-xs text-quiet">{m}
-                  <input className={`${inputClass} mt-1`} inputMode="numeric" value={months[i]} placeholder="0"
-                    onChange={(e) => setMonths((prev) => prev.map((x, j) => (j === i ? digits(e.target.value) : x)))} />
-                </label>
-              ))}
+        <Panel className="space-y-5">
+          <h2 className="text-lg font-medium tracking-tight">How your claim is checked</h2>
+          <ol className="space-y-3 text-sm leading-relaxed">
+            <li className="flex gap-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-pine-soft text-xs font-medium text-pine-deep">1</span><span><b className="font-medium">You make a claim</b>, like &ldquo;{shopName(shopId)} buys ₹45,000 a month&rdquo;.</span></li>
+            <li className="flex gap-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-pine-soft text-xs font-medium text-pine-deep">2</span><span><b className="font-medium">A payment app shares its records</b> of what the shop actually paid your verified bank account, month by month.</span></li>
+            <li className="flex gap-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-pine-soft text-xs font-medium text-pine-deep">3</span><span><b className="font-medium">MOSAIC compares them.</b> The payments must reach 70% of your claim, after removing money you sent back within 30 days.</span></li>
+          </ol>
+          <p className="rounded-(--radius-control) bg-wash px-4 py-3 text-sm text-quiet">So you can&apos;t pass by typing bigger numbers. Only the payment app&apos;s records count.</p>
+          <details className="group">
+            <summary className="cursor-pointer list-none text-sm font-medium text-pine underline underline-offset-4">Optional: add your own figures (shown to lenders as &ldquo;Supplier says&rdquo;, never used to pass)</summary>
+            <div className="mt-4 space-y-4">
+              <Field label="What you say the shop bought each month (₹)">
+                <div className="grid grid-cols-3 gap-4">
+                  {MONTH_LABELS.map((m, i) => (
+                    <label key={m} className="text-xs text-quiet">{m}
+                      <input className={`${inputClass} mt-1`} inputMode="numeric" value={months[i]} placeholder="0"
+                        onChange={(e) => setMonths((prev) => prev.map((x, j) => (j === i ? digits(e.target.value) : x)))} />
+                    </label>
+                  ))}
+                </div>
+              </Field>
+              <Field label="What you say you sent back each month (₹)">
+                <input className={inputClass} inputMode="numeric" value={refund} placeholder="0" onChange={(e) => setRefund(digits(e.target.value))} />
+              </Field>
+              {says.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(says.data.months.reduce((t, n) => t + n, 0) / 6))} a month on average (supplier says).</p>}
+              <Button onClick={saveSays} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !months.some((m) => Number(m) > 0)} loading={busy === "says"} className="w-full">
+                {busy === "says" ? "Saving…" : "Save what I say"}
+              </Button>
             </div>
-          </Field>
-          <Field label="Sent back to the shop each month (₹)" hint="Refunds, returns. Shown as what you say; the checks use the payment app's numbers.">
-            <input className={inputClass} inputMode="numeric" value={refund} placeholder="0" onChange={(e) => setRefund(digits(e.target.value))} />
-          </Field>
-          {says.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(says.data.months.reduce((t, n) => t + n, 0) / 6))} a month on average (supplier says).</p>}
-          <Button onClick={saveSays} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !months.some((m) => Number(m) > 0)} loading={busy === "says"} className="w-full">
-            {busy === "says" ? "Saving…" : "Save what I say"}
-          </Button>
+          </details>
         </Panel>
         )}
         </div>

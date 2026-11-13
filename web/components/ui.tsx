@@ -14,7 +14,7 @@ export function Button({
   variant = "primary", className = "", loading = false, disabled, children, ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost"; loading?: boolean }) {
   const styles = {
-    primary: "bg-pine text-white hover:bg-pine-deep active:bg-[#1B3A58]",
+    primary: "bg-pine text-white hover:bg-pine-deep active:bg-[#143D30]",
     secondary: "border border-line bg-surface text-ink hover:bg-wash active:bg-pine-soft",
     danger: "border border-clay/40 bg-surface text-clay hover:bg-clay-soft active:bg-clay-soft",
     ghost: "text-quiet hover:bg-wash hover:text-ink active:bg-pine-soft",
@@ -37,7 +37,7 @@ const TONES: Record<Tone, { cls: string; Icon: LucideIcon }> = {
   ok: { cls: "bg-pine-soft text-pine", Icon: CircleCheck },
   bad: { cls: "bg-clay-soft text-clay", Icon: CircleX },
   quiet: { cls: "bg-wash text-quiet", Icon: CircleDashed },
-  open: { cls: "bg-accent-soft text-accent-deep", Icon: Clock3 },
+  open: { cls: "border border-ink/25 bg-surface text-ink", Icon: Clock3 },
 };
 const STATE_TONE: Record<string, Tone> = {
   verified: "ok", pass: "ok", Valid: "ok", active: "ok",
@@ -73,7 +73,6 @@ export const inputClass =
 export function PageTitle({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <header className="max-w-2xl">
-      <span aria-hidden className="mb-4 block h-1 w-10 rounded-full bg-accent" />
       <h1 className="text-3xl font-medium leading-tight tracking-tight text-ink sm:text-4xl">{title}</h1>
       {children && <p className="mt-4 text-base leading-relaxed text-quiet">{children}</p>}
     </header>

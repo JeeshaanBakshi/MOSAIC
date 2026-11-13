@@ -18,7 +18,10 @@ const ok = (n, c, x = "") => { c ? pass++ : fail++; console.log(c ? "  ✔" : " 
 const ADDR = JSON.parse(fs.readFileSync(new URL("./.addresses.json", import.meta.url), "utf8"));
 const fmt = (n) => `${(n / 1e7).toLocaleString("en-US", { maximumFractionDigits: 2 })} USDC`;
 const bal = async (k) => fmt((await (await fetch(BASE + "/api/rpc", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fn: "contract.getBalances", args: [[ADDR[k]]] }) })).json()).data[0]);
-const go = async (path) => { await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1000); };
+const go = async (path) => {
+  await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1000);
+  if (path.startsWith("/admin")) await page.locator("summary", { hasText: "Test tools and logs" }).click().catch(() => {}); // the demo tools are folded away by default
+};
 const as = async (role) => { await page.selectOption('select[aria-label="You are"]:visible', role); await page.waitForTimeout(300); };
 const btn = (name, exact = false) => page.getByRole("button", { name, exact });
 const click = async (name, o = {}) => { await btn(name, o.exact)[o.last ? "last" : "first"]().click(); await page.waitForTimeout(o.wait ?? 1200); };
@@ -166,7 +169,10 @@ ok("the testnet banner is on every page", await page.getByText("real Stellar tes
 await go("/lender"); await as("asha"); await page.waitForTimeout(800);
 ok("lender sees both demo loan requests", (await page.getByRole("button", { name: "Review" }).count()) === 2);
 ok("On-chain panel: contract linked to Stellar Expert (testnet)", (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG"]').count()) >= 1);
-ok("On-chain panel: says simulation only when the server has no keys", await page.getByText("Simulation only: no keys on this server").isVisible());
+ok("On-chain panel: explains demo mode when the server has no keys", (await page.getByText("Demo mode", { exact: true }).isVisible()) && (await page.getByText(/runs the same rules without sending transactions/).isVisible()));
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
+ok("My shop opens with the public profile first, inline", (await page.getByText("Your public profile: this is what a lender sees").isVisible()) && (await page.getByRole("button", { name: "Reset the demo" }).isVisible()));
+await go("/lender"); await as("asha"); await page.waitForTimeout(1000);
 ok("On-chain panel: a read-only wallet button, optional", await page.getByRole("button", { name: /Connect wallet \(read-only\)/ }).isVisible());
 await page.getByRole("button", { name: "Review" }).nth(1).click(); await page.waitForTimeout(600); // Sunrise Mart, the fake shop
 await click("Check the shop", { wait: 3500 });
@@ -190,6 +196,7 @@ ok("health shows no secrets", !JSON.stringify(health).includes("testtoken") && !
 
 const other = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
 await other.goto(BASE + "/admin"); await other.waitForTimeout(2500);
+await other.locator("summary", { hasText: "Test tools and logs" }).click().catch(() => {});
 const otherBal = async (k) => (await other.locator(`[data-balance="${k}"]`).first().innerText()).trim();
 ok("a different visitor sees the SAME data (shared cloud)", (await otherBal("contract")) === (await bal("contract")), `${await otherBal("contract")} vs ${await bal("contract")}`);
 const dateBefore = await other.getByText(/App date:/).innerText();

@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 import { TrustGraph, GraphLegend } from "@/components/TrustGraph";
 import { Badge, PageTitle, Rows, Section, Skeleton, Stat } from "@/components/ui";
 
-export function ShopView({ id }: { id: string }) {
+export function ShopView({ id, embedded = false }: { id: string; embedded?: boolean }) {
   const shop = useQuery(() => backend.getShop(id), [id]);
   const graph = useQuery(() => backend.getGraph(id), [id]);
   const evidence = useQuery(() => loadEvidence(id), [id]);
@@ -19,18 +19,26 @@ export function ShopView({ id }: { id: string }) {
   const verified = items.filter((e) => e.overall === "verified").length;
 
   return (
-    <div className="space-y-12">
-      <PageTitle title={shop.data?.name ?? id}>
-        {shop.data
-          ? `${shop.data.type}, ${shop.data.address}. Since ${shop.data.since}.`
-          : ""}
-      </PageTitle>
-      <div className="flex flex-wrap gap-2 text-sm" aria-label="Shops">
-        {["shop-1", "shop-2"].map((s) => (
-          <Link key={s} href={`/shop/${s}`} aria-current={s === id ? "page" : undefined}
-            className={`rounded-full px-4 py-2 font-medium ${s === id ? "bg-pine text-white" : "border border-line text-quiet hover:bg-wash hover:text-ink"}`}>{s}</Link>
-        ))}
-      </div>
+    <div className={embedded ? "space-y-8 rounded-(--radius-panel) border border-line bg-surface p-6 sm:p-8" : "space-y-12"}>
+      {embedded ? (
+        <div>
+          <p className="text-sm font-medium text-pine">Your public profile: this is what a lender sees</p>
+          <h2 className="mt-1 text-2xl font-medium tracking-tight">{shop.data?.name ?? id}</h2>
+          {shop.data && <p className="mt-1 text-sm text-quiet">{shop.data.type}. {shop.data.address}. Trading since {shop.data.since}.</p>}
+        </div>
+      ) : (
+        <>
+          <PageTitle title={shop.data?.name ?? id}>
+            {shop.data ? `${shop.data.type}, ${shop.data.address}. Since ${shop.data.since}.` : ""}
+          </PageTitle>
+          <div className="flex flex-wrap gap-2 text-sm" aria-label="Shops">
+            {["shop-1", "shop-2", "shop-3"].map((s) => (
+              <Link key={s} href={`/shop/${s}`} aria-current={s === id ? "page" : undefined}
+                className={`rounded-full px-4 py-2 font-medium ${s === id ? "bg-pine text-white" : "border border-line text-quiet hover:bg-wash hover:text-ink"}`}>{s}</Link>
+            ))}
+          </div>
+        </>
+      )}
 
       <dl className="grid gap-8 sm:grid-cols-3">
         <Stat label="Credentials on record" value={evidence.loading ? <Skeleton /> : String(items.length)} />
@@ -66,9 +74,11 @@ export function ShopView({ id }: { id: string }) {
         </Section>
       )}
 
-      <p className="text-sm text-quiet">
-        Lenders see every check and the reasons on the <Link className="font-medium text-pine underline underline-offset-4" href={`/lender?shop=${id}`}>Lender page</Link>.
-      </p>
+      {!embedded && (
+        <p className="text-sm text-quiet">
+          Lenders see every check and the reasons on the <Link className="font-medium text-pine underline underline-offset-4" href={`/lender?shop=${id}`}>Lender page</Link>.
+        </p>
+      )}
     </div>
   );
 }

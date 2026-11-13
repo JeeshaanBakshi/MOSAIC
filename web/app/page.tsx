@@ -38,7 +38,7 @@ export default function Home() {
   return (
     <div className="space-y-16 lg:space-y-24">
       <section className="max-w-3xl">
-        <p className="text-sm font-medium uppercase tracking-wide text-accent-deep">Verification infrastructure for the next billion customers</p>
+        <p className="text-sm font-medium uppercase tracking-wide text-pine">Verification infrastructure for the next billion customers</p>
         <h1 className="mt-4 text-4xl font-medium leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
           A business shouldn&apos;t need a credit history to prove it has a real economic history.
         </h1>
@@ -60,7 +60,7 @@ export default function Home() {
         <ol className="grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-5">
           {STEPS.map(([title, body], i) => (
             <li key={title} className="border-t-2 border-line pt-4">
-              <span aria-hidden className="grid size-7 place-items-center rounded-full bg-accent-soft text-sm font-medium text-accent-deep">{i + 1}</span>
+              <span aria-hidden className="grid size-7 place-items-center rounded-full bg-pine-soft text-sm font-medium text-pine-deep">{i + 1}</span>
               <h3 className="mt-3 text-base font-medium leading-snug">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-quiet">{body}</p>
             </li>
