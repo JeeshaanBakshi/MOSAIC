@@ -1,5 +1,5 @@
 "use client";
-// One click: wipe the shared data and load the example data (3 issuers, 3 credentials, 1 loan request).
+// One click: wipe the shared data and load the example data (4 issuers, 5 credentials, 2 loan requests).
 // Same call as the Admin "Load demo" button, placed on the home page so anyone can start from it.
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ export function LoadDemoButton() {
     if (!window.confirm("Reset all data for everyone and load the example data (3 issuers, 3 credentials, 1 loan request)?")) return;
     setBusy(true);
     try {
-      if ((await demo.loadDemo()) !== false) toast.success("Example data loaded. Pick a role above.");
+      if ((await demo.loadDemo()) !== false) toast.success("Demo reloaded. Pick a role above.");
     } catch (e) {
       errorToast(e);
     } finally {
@@ -25,7 +25,7 @@ export function LoadDemoButton() {
 
   return (
     <Button variant="secondary" loading={busy} onClick={load}>
-      <Database className="size-4" aria-hidden />Load example data
+      <Database className="size-4" aria-hidden />Reset the demo
     </Button>
   );
 }

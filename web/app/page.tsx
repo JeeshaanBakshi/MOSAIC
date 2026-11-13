@@ -10,6 +10,14 @@ const DOORS: { role: Persona; href: string; title: string; body: string; Icon: L
   { role: "admin", href: "/admin", title: "I run Mosaic", body: "Approve issuers. Settle disputes.", Icon: ShieldCheck },
 ];
 
+const CASES = [
+  ["1. Sharma Store (honest)", "A supplier and a payment app vouch, every check passes, and a loan limit is shown."],
+  ["2. Fake shop (Shop 3)", "Listed and vouched for by one supplier only, no payment-app receipts: needs an independent payment app. Unknown, no limit."],
+  ["3. Self-dealing (Issuer 4)", "Shares the shop's phone and bank account: independence fails and the claim is not counted."],
+  ["4. Inflated, round-trip (Issuer 3)", "Claims ₹1,50,000 a month. The payment app shows ₹1,50,000 out and ₹1,40,000 back within 30 days: net flow fails."],
+  ["5. Stacking", "On the Lender page, press \u201cDemo: 2 other lenders also check this shop\u201d on Sharma: 3 checks in 30 days, warning shown."],
+];
+
 const STEPS = [
   ["Suppliers and payment apps vouch", "Each puts 30 USDC behind its claim."],
   ["Claims meet the receipts", "A claim counts only if payments back it up."],
@@ -25,6 +33,22 @@ export default function Home() {
           A business shouldn&apos;t need a credit history to prove it has a real economic history.
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-quiet">Suppliers and payment apps vouch for small shops, with money behind their word. Missing evidence means unknown, never bad.</p>
+        <RoleLink role="sharma" href="/my-shop" className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-(--radius-control) bg-pine px-6 text-sm font-medium text-white transition-colors hover:bg-pine-deep">
+          Try the demo with Sharma Store<ChevronRight className="size-4" aria-hidden />
+        </RoleLink>
+      </section>
+
+      <section aria-labelledby="cases">
+        <h2 id="cases" className="mb-4 text-lg font-medium tracking-tight">The fraud demo: 5 cases on the Lender page</h2>
+        <ol className="divide-y divide-line border-y border-line text-sm">
+          {CASES.map(([title, body]) => (
+            <li key={title} className="py-4 sm:flex sm:gap-6">
+              <span className="font-medium sm:w-64 sm:shrink-0">{title}</span>
+              <span className="mt-1 block text-quiet sm:mt-0">{body}</span>
+            </li>
+          ))}
+        </ol>
+        <RoleLink role="asha" href="/lender" className="mt-4 text-sm font-medium text-pine underline underline-offset-4">Open the Lender page as Lender 1</RoleLink>
       </section>
 
       <section aria-labelledby="who">
@@ -57,7 +81,7 @@ export default function Home() {
         </ol>
         <div className="mt-8 flex max-w-xl flex-col items-start gap-4">
           <LoadDemoButton />
-          <p className="text-sm leading-relaxed text-quiet">Fills the app with example shops, issuers and credentials. Switch people with &ldquo;You are&rdquo; in the menu.</p>
+          <p className="text-sm leading-relaxed text-quiet">The demo loads by itself on the first visit. This button wipes everything for everyone and loads it again.</p>
         </div>
       </section>
 

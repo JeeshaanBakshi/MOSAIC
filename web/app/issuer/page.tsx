@@ -47,9 +47,13 @@ export default function IssuerPage() {
   const [amount, setAmount] = useState(45000);
   const [edited, setEdited] = useState<string | null>(null); // the summary, once you type in it yourself
   const [busy, setBusy] = useState<string | null>(null);
-  const [months, setMonths] = useState<string[]>(["", "", "", "", "", ""]); // evidence: 6 monthly totals
+  const blank6 = () => ["", "", "", "", "", ""];
+  const [months, setMonths] = useState<string[]>(blank6()); // supplier says: 6 monthly totals
   const [refund, setRefund] = useState("");
-  const evidence = useQuery(() => backend.getEvidence(me, shopId), [me, shopId]);
+  const [receipts, setReceipts] = useState<string[]>(blank6()); // payment app: money in, per month
+  const [payees, setPayees] = useState([{ account: "", out: blank6(), back: blank6() }]); // payment app: per payee account
+  const says = useQuery(() => backend.getSupplierSays(me, shopId), [me, shopId]);
+  const feed = useQuery(() => backend.getPaymentFeed(me, shopId), [me, shopId]);
   const kind = registry.data?.kind;
 
   const template = CLAIM_TYPES.find((c) => c.value === claimType)!.text(inr(amount || 0));
@@ -64,19 +68,30 @@ export default function IssuerPage() {
   const issue = () => run("issue", async () => {
     // The fingerprint of the evidence. Only this hash goes on-chain, never the evidence itself.
     const hash = await claimHash({ shop_id: shopId, issuer: me, claim_type: claimType, summary, monthly_amount_inr: amount });
-    const { result, hash: tx } = await contract.issueCredential(me, shopId, claimType, summary, hash);
+    const { result, hash: tx, onchain } = await contract.issueCredential(me, shopId, claimType, summary, hash);
     await backend.syncChecks(shopId); // the backend checks the claim against the evidence
-    txToast(`Credential #${result} issued. ${stake ? usdc(stake) : "Stake"} locked.`, tx);
+    txToast(`Credential #${result} issued. ${stake ? usdc(stake) : "Stake"} locked.`, tx, onchain);
   });
 
-  const saveEvidence = () => run("evidence", async () => {
-    await backend.submitEvidence(me, shopId, months.map((m) => Number(m || 0)), Number(refund || 0));
-    toast.success("Evidence saved. Checks updated.");
+  const saveSays = () => run("says", async () => {
+    await backend.submitSupplierSays(me, shopId, months.map((m) => Number(m || 0)), Number(refund || 0));
+    toast.success("Saved as \"Supplier says\". The checks do not use it.");
   });
+
+  const saveFeed = () => run("feed", async () => {
+    const rows = payees.filter((p) => p.account.trim());
+    await backend.submitPaymentFeed(me, shopId, MONTH_LABELS.map((_, i) => ({
+      receipts: Number(receipts[i] || 0),
+      payees: Object.fromEntries(rows.map((p) => [p.account.trim(), { out: Number(p.out[i] || 0), back: Number(p.back[i] || 0) }])),
+    })));
+    toast.success("Payment records saved. Checks updated.");
+  });
+  const setPayee = (n: number, patch: Partial<(typeof payees)[number]>) => setPayees((prev) => prev.map((p, j) => (j === n ? { ...p, ...patch } : p)));
+  const setCell = (n: number, field: "out" | "back", i: number, v: string) => setPayee(n, { [field]: payees[n][field].map((x, j) => (j === i ? digits(v) : x)) });
 
   const revoke = (id: number) => run(`revoke-${id}`, async () => {
-    const { hash } = await contract.revoke(me, id);
-    txToast(`Credential #${id} revoked`, hash);
+    const { hash, onchain } = await contract.revoke(me, id);
+    txToast(`Credential #${id} revoked`, hash, onchain);
   });
 
   const release = (id: number) => run(`release-${id}`, async () => {
@@ -148,10 +163,49 @@ export default function IssuerPage() {
           </Button>
         </Panel>
 
+        {kind === "PaymentProvider" ? (
         <Panel className="space-y-6">
-          <h2 className="text-lg font-medium tracking-tight">Add evidence for {shopId || "a shop"}</h2>
-          <p className="text-sm text-quiet">Only claims backed by evidence earn fees.</p>
-          <Field label={kind === "PaymentProvider" ? "Payments settled to the shop each month (₹)" : "Shop's purchases from you each month (₹)"}>
+          <h2 className="text-lg font-medium tracking-tight">Share payment records for {shopId || "a shop"}</h2>
+          <p className="text-sm text-quiet">These are the numbers the checks use to judge supplier claims (and your own). Only claims backed by payment-app records earn fees.</p>
+          <Field label="Money in to the shop each month (₹)" hint="Everything that came in, including transfers back from payees.">
+            <div className="grid grid-cols-3 gap-4">
+              {MONTH_LABELS.map((m, i) => (
+                <label key={m} className="text-xs text-quiet">{m}
+                  <input className={`${inputClass} mt-1`} inputMode="numeric" value={receipts[i]} placeholder="0"
+                    onChange={(e) => setReceipts((prev) => prev.map((x, j) => (j === i ? digits(e.target.value) : x)))} />
+                </label>
+              ))}
+            </div>
+          </Field>
+          {payees.map((p, n) => (
+            <div key={n} className="space-y-4 rounded-(--radius-control) border border-line p-4">
+              <Field label={`Payee account ${n + 1}`} hint="The account the shop paid, e.g. a supplier's verified bank account.">
+                <input className={inputClass} value={p.account} placeholder="ICIC-0009012-11122233" onChange={(e) => setPayee(n, { account: e.target.value })} />
+              </Field>
+              {(["out", "back"] as const).map((field) => (
+                <Field key={field} label={field === "out" ? "Shop paid out each month (₹)" : "Came back from this account each month (₹)"}>
+                  <div className="grid grid-cols-3 gap-4">
+                    {MONTH_LABELS.map((m, i) => (
+                      <label key={m} className="text-xs text-quiet">{m}
+                        <input className={`${inputClass} mt-1`} inputMode="numeric" value={p[field][i]} placeholder="0" onChange={(e) => setCell(n, field, i, e.target.value)} />
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              ))}
+            </div>
+          ))}
+          <Button variant="secondary" onClick={() => setPayees((prev) => [...prev, { account: "", out: blank6(), back: blank6() }])} disabled={payees.length >= 10}>Add another payee account</Button>
+          {feed.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(feed.data.months.reduce((t, m) => t + m.receipts, 0) / 6))} a month in, on average.</p>}
+          <Button onClick={saveFeed} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !receipts.some((m) => Number(m) > 0)} loading={busy === "feed"} className="w-full">
+            {busy === "feed" ? "Saving…" : "Save payment records"}
+          </Button>
+        </Panel>
+        ) : (
+        <Panel className="space-y-6">
+          <h2 className="text-lg font-medium tracking-tight">What you say you sold {shopId || "a shop"}</h2>
+          <p className="text-sm text-quiet">Shown to lenders as &ldquo;Supplier says&rdquo;. It never passes a check: payment-app records of what the shop paid your verified account do.</p>
+          <Field label="Shop's purchases from you each month (₹)">
             <div className="grid grid-cols-3 gap-4">
               {MONTH_LABELS.map((m, i) => (
                 <label key={m} className="text-xs text-quiet">{m}
@@ -161,14 +215,15 @@ export default function IssuerPage() {
               ))}
             </div>
           </Field>
-          <Field label="Sent back to the shop each month (₹)" hint="Refunds, returns. Money that comes straight back doesn't count.">
+          <Field label="Sent back to the shop each month (₹)" hint="Refunds, returns. Shown as what you say; the checks use the payment app's numbers.">
             <input className={inputClass} inputMode="numeric" value={refund} placeholder="0" onChange={(e) => setRefund(digits(e.target.value))} />
           </Field>
-          {evidence.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(evidence.data.months.reduce((t, n) => t + n, 0) / 6))} a month on average.</p>}
-          <Button onClick={saveEvidence} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !months.some((m) => Number(m) > 0)} loading={busy === "evidence"} className="w-full">
-            {busy === "evidence" ? "Saving…" : "Save evidence"}
+          {says.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(says.data.months.reduce((t, n) => t + n, 0) / 6))} a month on average (supplier says).</p>}
+          <Button onClick={saveSays} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !months.some((m) => Number(m) > 0)} loading={busy === "says"} className="w-full">
+            {busy === "says" ? "Saving…" : "Save what I say"}
           </Button>
         </Panel>
+        )}
         </div>
 
         <Section title="Your credentials" className="self-start">
@@ -192,7 +247,7 @@ export default function IssuerPage() {
                   {v.status === "Valid" && (
                     <p className={`flex items-center gap-2 text-sm ${c.passed ? "text-pine" : "text-quiet"}`}>
                       {c.passed ? <CircleCheck className="size-4 shrink-0" aria-hidden /> : <CircleDashed className="size-4 shrink-0" aria-hidden />}
-                      {c.passed ? "Earning fees." : "Not earning yet. Add evidence for this shop."}
+                      {c.passed ? "Earning fees." : "Not earning yet. The checks need payment-app records for this shop."}
                     </p>
                   )}
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

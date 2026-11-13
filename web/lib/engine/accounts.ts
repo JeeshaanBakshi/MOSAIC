@@ -5,7 +5,7 @@
 import { fakeAddress } from "./util";
 import type { IssuerKind } from "./types";
 
-export type RoleId = "admin" | "gupta" | "paylink" | "quick" | "asha";
+export type RoleId = "admin" | "gupta" | "paylink" | "quick" | "selfdeal" | "asha";
 
 export interface Account {
   id: RoleId;
@@ -21,11 +21,12 @@ export const ACCOUNTS: Record<RoleId, Account> = {
   gupta: { id: "gupta", name: "Issuer 1", label: "supplier (honest issuer)", address: fakeAddress("gupta"), kind: "Supplier", home: "/issuer" },
   paylink: { id: "paylink", name: "Issuer 2", label: "payment provider (honest issuer)", address: fakeAddress("paylink"), kind: "PaymentProvider", home: "/issuer" },
   quick: { id: "quick", name: "Issuer 3", label: "supplier that inflates its claims", address: fakeAddress("quick"), kind: "Supplier", home: "/issuer" },
+  selfdeal: { id: "selfdeal", name: "Issuer 4", label: "supplier that deals with the shop's own people (self-dealing)", address: fakeAddress("selfdeal"), kind: "Supplier", home: "/issuer" },
   asha: { id: "asha", name: "Lender 1", label: "lender", address: fakeAddress("asha"), home: "/lender" },
 };
 
 export const ROLE_IDS = Object.keys(ACCOUNTS) as RoleId[];
-export const ISSUER_ROLES: RoleId[] = ["gupta", "paylink", "quick"];
+export const ISSUER_ROLES: RoleId[] = ["gupta", "paylink", "quick", "selfdeal"];
 
 /** The USDC token contract and the MOSAIC contract are accounts too: contracts can hold money. */
 export const USDC_ADDRESS = fakeAddress("usdc-token", "C");
@@ -34,6 +35,11 @@ export const CONTRACT_ADDRESS = fakeAddress("mosaic-contract", "C");
 const byAddress: Record<string, string> = Object.fromEntries([
   ...ROLE_IDS.map((r) => [ACCOUNTS[r].address, ACCOUNTS[r].name]),
   [CONTRACT_ADDRESS, "MOSAIC contract"],
+  ["shop-1", "Shop 1"], // shops have no wallet, but they appear in the activity log when they approve an issuer
+  ["shop-2", "Shop 2"],
+  ["shop-3", "Shop 3"],
+  ["lender-2", "Lender 2"], // the demo's "other lenders" (stacking counter)
+  ["lender-3", "Lender 3"],
 ]);
 
 export function nameOf(address: string): string {

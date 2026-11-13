@@ -13,6 +13,12 @@ export function formatDate(unixSecs: number): string {
   return new Date(unixSecs * 1000).toLocaleDateString("en-CA", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).replace(".", "");
 }
 
+// The real contract on Stellar testnet (public IDs). Every real transaction links to Stellar Expert.
+export const CONTRACT_ID = "CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG";
+export const EXPLORER = "https://stellar.expert/explorer/testnet";
+export const txUrl = (hash: string) => `${EXPLORER}/tx/${hash}`;
+export const contractUrl = `${EXPLORER}/contract/${CONTRACT_ID}`;
+
 // Indicative exchange rates, for orientation only (not a quote). Update them when you ship.
 export const CAD_PER_INR = 0.0165;
 export const CAD_PER_USD = 1.38;

@@ -6,6 +6,7 @@ import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert } from "luc
 import { Shell } from "@/components/Shell";
 import { ResetOnLoad } from "@/components/ResetOnLoad";
 import { CloudSync } from "@/components/CloudSync";
+import { AutoDemo } from "@/components/AutoDemo";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <Suspense fallback={null}><ResetOnLoad /></Suspense>
         <CloudSync />
+        <AutoDemo />
         <Shell>{children}</Shell>
         <Toaster position="bottom-right" icons={{
           success: <CircleCheck className="size-4 text-pine" />, error: <CircleAlert className="size-4 text-clay" />,

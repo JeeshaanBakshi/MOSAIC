@@ -10,7 +10,7 @@ SERVER=""
 trap 'kill $FAKES $SERVER 2>/dev/null || true' EXIT
 npx tsx tests/addresses.ts > tests/.addresses.json
 npm run build > /dev/null
-MAX_CODES_PER_HOUR=1000 UPSTASH_REDIS_REST_URL=http://127.0.0.1:4401 UPSTASH_REDIS_REST_TOKEN=testtoken \
+AUTO_DEMO=off MAX_CODES_PER_HOUR=1000 UPSTASH_REDIS_REST_URL=http://127.0.0.1:4401 UPSTASH_REDIS_REST_TOKEN=testtoken \
   RESEND_API_KEY=resend-test-key RESEND_API_URL=http://127.0.0.1:4402/emails RESET_PASSWORD=secret \
   npm run start -- -p $PORT > /dev/null 2>&1 &
 SERVER=$!

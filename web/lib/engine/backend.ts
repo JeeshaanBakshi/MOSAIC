@@ -1,6 +1,7 @@
 import "server-only";
 // The fake rules-engine backend (checks 2-4 + the trust graph).
-// It reads credentials from the fake contract, then compares each claim with FAKE payment records.
+// It reads credentials from the fake contract, then compares each claim with PAYMENT-APP records
+// (what a payment app shares about the shop). A supplier's own numbers are shown as "Supplier says" and never used.
 //
 // CONNECT (the whole file): replace with calls to your FastAPI server:
 //   getShops()   -> GET /shops
@@ -12,9 +13,9 @@ import "server-only";
 import { ACCOUNTS, type RoleId } from "./accounts";
 import { SHOPS, type Shop } from "./data";
 import { getCredentials, markChecked } from "./contract";
-import { netFlow, independence, paymentMatch, parseClaimedAmount, splitFlows, type CheckResult, type Party, type Payment } from "./rules";
+import { netFlow, independence, paymentMatch, parseClaimedAmount, monthlyFlows, type CheckResult, type FeedMonth, type FlowContext, type Party, type PaymentFeed } from "./rules";
 import { sleep } from "./util";
-import { read, mutateDb, type Evidence } from "./store";
+import { read, mutateDb, type SupplierSays } from "./store";
 import type { ReviewCheck } from "./onboarding";
 import { rs } from "./rules";
 import { ApiError, ContractError, type IssuerKind, type Status } from "./types";
@@ -24,11 +25,12 @@ const MONTHS = 6; // the evidence window: May to Oct 2026
 
 // ---------- fake data ----------
 
-/** Who each issuer really is. Issuer 3 shares the shop owner's phone number on purpose. */
+/** Who each issuer really is, and the receiving account it verified at onboarding. Issuer 4 shares the shop owner's phone and bank account on purpose. */
 const ISSUER_IDENTITY: Partial<Record<RoleId, Party>> = {
   gupta: { owner: "Issuer 1 Owner", phone: "+91 97300 33333", bankAccount: "ICIC-0009012-11122233", address: "88 Siyaganj Market, Indore, Madhya Pradesh" },
   paylink: { owner: "Issuer 2 Technologies Pvt Ltd", phone: "+91 80000 44444", bankAccount: "AXIS-0003456-99988877", address: "21 MG Road, Bengaluru, Karnataka" },
-  quick: { owner: "Issuer 3 Owner", phone: "+91 98100 11111", bankAccount: "KOTK-0007890-44455566", address: "3 Nehru Nagar, Indore, Madhya Pradesh" },
+  quick: { owner: "Issuer 3 Owner", phone: "+91 98100 77777", bankAccount: "KOTK-0007890-44455566", address: "3 Nehru Nagar, Indore, Madhya Pradesh" },
+  selfdeal: { owner: "Issuer 4 Owner", phone: "+91 98100 11111", bankAccount: "SBIN-0001234-55501234", address: "9 Market Lane, Indore, Madhya Pradesh" },
 };
 
 /** Who an issuer really is: what it told us when it applied (if it did), else the demo record. */
@@ -39,59 +41,79 @@ function identityOf(role: RoleId | undefined, address: string): Party | null {
   return { owner: app.ownerName, phone: app.phone, bankAccount: base?.bankAccount ?? "", address: base?.address ?? "" };
 }
 
+/** The supplier's VERIFIED receiving account: the one on file from onboarding. Payments are matched against this account only. */
+export function verifiedAccountOf(role: RoleId): string | null {
+  return ISSUER_IDENTITY[role]?.bankAccount ?? null;
+}
+
 const WINDOW = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]; // the 6 months of evidence
 
-/** Six months of payments for shop-1. Fixed numbers (no randomness) so the demo is repeatable. */
-function buildPayments(): Payment[] {
-  const months = WINDOW;
-  const purchases = [[22000, 23500], [21500, 24000], [23000, 22500], [22500, 23000], [24000, 21500], [23500, 22000]];
-  const settlements = [14500, 15200, 13800, 14900, 15100, 14200];
-  const out: Payment[] = [];
-  months.forEach((m, i) => {
-    out.push({ from: "shop-1", to: "gupta", amountInr: purchases[i][0], date: `${m}-05`, note: "stock purchase" });
-    out.push({ from: "shop-1", to: "gupta", amountInr: purchases[i][1], date: `${m}-20`, note: "stock purchase" });
-    for (const d of ["07", "14", "21", "28"]) {
-      out.push({ from: "paylink", to: "shop-1", amountInr: settlements[i], date: `${m}-${d}`, note: "UPI settlement" });
-    }
-    // Issuer 3: tiny purchases, and most of it comes straight back (round-trip).
-    out.push({ from: "shop-1", to: "quick", amountInr: 5000, date: `${m}-10`, note: "purchase" });
-    out.push({ from: "quick", to: "shop-1", amountInr: 4500, date: `${m}-12`, note: "refund" });
+const roleOf = (address: string): RoleId | undefined => (Object.values(ACCOUNTS).find((a) => a.address === address)?.id);
+
+/**
+ * The payment-app records to judge one claim by.
+ *  - A payment app's own claim: its own records for this shop.
+ *  - A supplier's claim: the records of a DIFFERENT, approved payment app. Never the supplier's own numbers.
+ */
+function feedFor(issuer: string, shopId: string, kind: IssuerKind): { feed: PaymentFeed | null; from: string } {
+  const feeds = read().db.feeds;
+  if (kind === "PaymentProvider") {
+    const own = feeds[`${issuer}|${shopId}`];
+    return { feed: own ?? null, from: read().issuers[issuer]?.name ?? "this payment app" };
+  }
+  const key = Object.keys(feeds).sort().find((k) => {
+    const [provider, shop] = k.split("|");
+    const rec = read().issuers[provider];
+    return shop === shopId && rec?.active && rec.kind === "PaymentProvider";
   });
-  out.push({ from: "gupta", to: "shop-1", amountInr: 2000, date: "2026-08-25", note: "credit note: damaged goods" });
-  return out;
-}
-const PAYMENTS = buildPayments();
-
-/** The payments to judge one issuer's claim by: what the issuer submitted for this shop, else the built-in demo records. */
-function paymentsFor(issuer: string, shopId: string, role: RoleId | undefined, kind: IssuerKind) {
-  const ev = read().db.evidence[`${issuer}|${shopId}`];
-  if (!ev) return { payments: PAYMENTS, key: role ?? "", submitted: false };
-  const payments: Payment[] = [];
-  WINDOW.forEach((m, i) => {
-    const amount = ev.months[i] ?? 0;
-    if (amount > 0) payments.push(kind === "PaymentProvider"
-      ? { from: issuer, to: shopId, amountInr: amount, date: `${m}-15`, note: "submitted" }
-      : { from: shopId, to: issuer, amountInr: amount, date: `${m}-15`, note: "submitted" });
-    if (ev.refundPerMonth > 0) payments.push(kind === "PaymentProvider"
-      ? { from: shopId, to: issuer, amountInr: ev.refundPerMonth, date: `${m}-20`, note: "refund" }
-      : { from: issuer, to: shopId, amountInr: ev.refundPerMonth, date: `${m}-20`, note: "refund" });
-  });
-  return { payments, key: issuer, submitted: true };
+  return key ? { feed: feeds[key], from: read().issuers[key.split("|")[0]].name } : { feed: null, from: "" };
 }
 
-export async function getEvidence(issuer: string, shopId: string): Promise<Evidence | null> {
-  return read().db.evidence[`${issuer}|${shopId}`] ?? null;
+export async function getSupplierSays(issuer: string, shopId: string): Promise<SupplierSays | null> {
+  return read().db.says[`${issuer}|${shopId}`] ?? null;
 }
 
-/** An issuer submits the monthly payments behind its claim. The checks re-run straight away. */
-export async function submitEvidence(issuer: string, shopId: string, months: number[], refundPerMonth: number): Promise<number> {
+export async function getPaymentFeed(issuer: string, shopId: string): Promise<(PaymentFeed & { submittedAt: number }) | null> {
+  return read().db.feeds[`${issuer}|${shopId}`] ?? null;
+}
+
+const okAmount = (n: number) => Number.isFinite(n) && n >= 0 && n <= 100_000_000;
+
+/** A SUPPLIER types what it says it sold. Saved and shown as "Supplier says", but no check uses it. */
+export async function submitSupplierSays(issuer: string, shopId: string, months: number[], sentBackPerMonth: number): Promise<number> {
   await sleep(LATENCY_MS);
   if (!read().issuers[issuer]) throw new ContractError("IssuerNotApproved");
-  const ok = (n: number) => Number.isFinite(n) && n >= 0 && n <= 100_000_000;
   if (!SHOPS[shopId]) throw new ApiError("InvalidInput", `We have no records for a shop called "${shopId}". Try shop-1 or shop-2.`);
-  if (months.length !== WINDOW.length || !months.every(ok) || !ok(refundPerMonth)) throw new ApiError("InvalidInput", "Enter 6 monthly amounts of zero or more.");
-  if (!months.some((m) => m > 0)) throw new ApiError("InvalidInput", "Enter at least one month's amount. Saving all zeros would overwrite your evidence with nothing."); // never wipe real evidence by accident
-  mutateDb((db, now) => { db.evidence[`${issuer}|${shopId}`] = { months: months.map(Math.round), refundPerMonth: Math.round(refundPerMonth), submittedAt: now }; });
+  if (months.length !== WINDOW.length || !months.every(okAmount) || !okAmount(sentBackPerMonth)) throw new ApiError("InvalidInput", "Enter 6 monthly amounts of zero or more.");
+  if (!months.some((m) => m > 0)) throw new ApiError("InvalidInput", "Enter at least one month's amount. Saving all zeros would overwrite your numbers with nothing.");
+  mutateDb((db, now) => { db.says[`${issuer}|${shopId}`] = { months: months.map(Math.round), sentBackPerMonth: Math.round(sentBackPerMonth), submittedAt: now }; });
+  return syncChecks(shopId);
+}
+
+/**
+ * A PAYMENT APP shares its records for a shop, month by month: money in (receipts), money paid out per payee account,
+ * and money that came back in from each payee. These are the numbers checks 2 and 4 use.
+ * CONNECT: in production this is a consented data feed from the payment app, not a form.
+ */
+export async function submitPaymentFeed(issuer: string, shopId: string, months: FeedMonth[]): Promise<number> {
+  await sleep(LATENCY_MS);
+  const record = read().issuers[issuer];
+  if (!record) throw new ContractError("IssuerNotApproved");
+  if (record.kind !== "PaymentProvider") throw new ApiError("Forbidden", "Only a payment app can share payment records. Suppliers can only say what they sold.");
+  if (!SHOPS[shopId]) throw new ApiError("InvalidInput", `We have no records for a shop called "${shopId}".`);
+  const bad = () => new ApiError("InvalidInput", "Enter 6 months. Each has receipts and, per payee account, what was paid out and what came back (all zero or more).");
+  if (!Array.isArray(months) || months.length !== WINDOW.length) throw bad();
+  const clean: FeedMonth[] = months.map((m) => {
+    if (!m || !okAmount(m.receipts) || typeof m.payees !== "object" || m.payees === null) throw bad();
+    const payees: FeedMonth["payees"] = {};
+    for (const [account, v] of Object.entries(m.payees).slice(0, 20)) {
+      if (!account.trim() || account.length > 40 || !v || !okAmount(v.out) || !okAmount(v.back)) throw bad();
+      payees[account.trim()] = { out: Math.round(v.out), back: Math.round(v.back) };
+    }
+    return { receipts: Math.round(m.receipts), payees };
+  });
+  if (!clean.some((m) => m.receipts > 0 || Object.values(m.payees).some((p) => p.out > 0))) throw new ApiError("InvalidInput", "Enter at least one amount. Saving all zeros would overwrite the records with nothing.");
+  mutateDb((db, now) => { db.feeds[`${issuer}|${shopId}`] = { months: clean, submittedAt: now }; });
   return syncChecks(shopId);
 }
 
@@ -122,6 +144,10 @@ export interface Evaluated {
   onchainStatus: Status;
   checks: CheckResult[]; // checks 2, 3 and 4
   overall: "verified" | "failed" | "unknown";
+  /** What the supplier typed. Shown beside the checks as "Supplier says", never used by them. */
+  supplierSays: { avgPurchases: number; sentBackPerMonth: number } | null;
+  verifiedAccount: string | null; // the receiving account payments were matched against
+  dataFrom: string; // which payment app's records the checks used ("" if none)
 }
 
 export interface Graph {
@@ -143,27 +169,24 @@ export async function getChecks(shopId: string): Promise<Evaluated[]> {
   await sleep(LATENCY_MS);
   const views = await getCredentials(shopId);
   const shop = SHOPS[shopId];
-  const roleByAddress = Object.fromEntries(Object.values(ACCOUNTS).map((a) => [a.address, a.id]));
 
   return views.map(({ credential: c, status, issuerName }) => {
-    const role = roleByAddress[c.issuer] as RoleId | undefined;
+    const role = roleOf(c.issuer);
     const kind: IssuerKind = read().issuers[c.issuer]?.kind ?? (role && ACCOUNTS[role].kind) ?? "Supplier";
     const claimed = parseClaimedAmount(c.summary);
-    const src = paymentsFor(c.issuer, shopId, role, kind);
-    const haveData = !!shop && (src.submitted || (!!role && src.payments.some((p) => p.from === shopId || p.to === shopId) &&
-      src.payments.some((p) => [p.from, p.to].includes(role))));
-    const { forward, reverse } = splitFlows(src.payments, shopId, src.key, kind);
+    const account = kind === "Supplier" && role ? verifiedAccountOf(role) : null;
+    const { feed, from } = feedFor(c.issuer, shopId, kind);
+    const ctx: FlowContext = { claimed, kind, account, feed: shop ? feed : null, feedFrom: from };
 
-    const checks = [
-      paymentMatch(claimed, forward, MONTHS, haveData),
-      independence(shop ?? ({} as Party), identityOf(role, c.issuer)),
-      netFlow(claimed, forward, reverse, MONTHS, haveData),
-    ];
+    const checks = [paymentMatch(ctx), independence(shop ?? null, identityOf(role, c.issuer)), netFlow(ctx)];
     const overall = checks.some((x) => x.result === "fail") ? "failed"
       : status === "Valid" && checks.every((x) => x.result === "pass") ? "verified" : "unknown";
+    const says = read().db.says[`${c.issuer}|${shopId}`];
     return {
       credentialId: c.id, issuer: c.issuer, issuerName, issuerKind: role ? kind : null,
       claimType: c.claimType, summary: c.summary, claimedMonthlyInr: claimed, onchainStatus: status, checks, overall,
+      supplierSays: says ? { avgPurchases: says.months.reduce((t, n) => t + n, 0) / says.months.length, sentBackPerMonth: says.sentBackPerMonth } : null,
+      verifiedAccount: account, dataFrom: feed ? from : "",
     };
   });
 }
@@ -206,6 +229,7 @@ export interface IssuerReceipts {
   months: ShopMonth[];
   avgNet: number;
   flow: string; // what the numbers mean, in words
+  failedWhy: string | null; // why a failed claim was not counted (the first failed check)
 }
 
 export type ShopVerdict = "looks_genuine" | "needs_review" | "not_enough_evidence";
@@ -221,8 +245,6 @@ export interface ShopReview {
 const RATIO_MIN = 0.4; // a kirana's purchases are normally 40%...
 const RATIO_MAX = 0.9; // ...to 90% of what it takes in
 
-const daysApart = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_000;
-const sumOf = (ps: Payment[]) => ps.reduce((t, p) => t + p.amountInr, 0);
 
 /** Everything the admin needs to judge one shop: month-by-month receipts per issuer, shop-level checks, and a verdict. */
 export async function getShopReview(shopId: string): Promise<ShopReview> {
@@ -235,20 +257,15 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
   for (const e of evaluated) {
     let row = issuers.find((r) => r.issuer === e.issuer);
     if (!row) {
-      const role = roleByAddress[e.issuer];
-      const kind = e.issuerKind;
-      const src = paymentsFor(e.issuer, shopId, role, kind ?? "Supplier");
-      const { forward, reverse } = splitFlows(src.payments, shopId, src.key, kind ?? "Supplier");
-      const roundTrips = reverse.filter((r) => forward.some((f) => { const d = daysApart(f.date, r.date); return d >= 0 && d <= 30; }));
-      const months = WINDOW.map((m) => {
-        const paid = sumOf(forward.filter((p) => p.date.startsWith(m)));
-        const returned = sumOf(roundTrips.filter((p) => p.date.startsWith(m)));
-        return { month: m, paid, returned, net: paid - returned };
-      });
+      const kind = e.issuerKind ?? "Supplier";
+      const { feed } = feedFor(e.issuer, shopId, kind);
+      const flows = feed ? monthlyFlows(feed, kind, e.verifiedAccount) : null;
+      const months = WINDOW.map((m, i) => ({ month: m, paid: flows?.[i].paid ?? 0, returned: flows?.[i].returned ?? 0, net: flows?.[i].net ?? 0 }));
       row = {
         issuer: e.issuer, issuerName: e.issuerName, kind, credentialIds: [], claimedMonthly: null, overall: e.overall, months,
+        failedWhy: null,
         avgNet: months.reduce((t, m) => t + m.net, 0) / WINDOW.length,
-        flow: kind === "PaymentProvider" ? "payments settled to the shop by this payment app" : "the shop's purchases from this supplier",
+        flow: kind === "PaymentProvider" ? "money in to the shop, as recorded by this payment app" : "what the shop paid this supplier's verified account, per a payment app",
       };
       issuers.push(row);
     }
@@ -256,11 +273,15 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
     if (e.claimedMonthlyInr !== null) row.claimedMonthly = Math.max(row.claimedMonthly ?? 0, e.claimedMonthlyInr);
     const rank = { failed: 2, unknown: 1, verified: 0 } as const;
     if (rank[e.overall] > rank[row.overall]) row.overall = e.overall;
+    if (e.overall === "failed" && !row.failedWhy) {
+      const f = e.checks.find((c) => c.result === "fail")!;
+      row.failedWhy = `${{ 2: "payment match", 3: "independence", 4: "net flow" }[f.check]} failed. ${f.reason}`;
+    }
   }
 
   const withData = issuers.filter((r) => r.months.some((m) => m.paid > 0));
-  const providers = withData.filter((r) => r.kind === "PaymentProvider");
-  const suppliers = withData.filter((r) => r.kind === "Supplier");
+  const providers = withData.filter((r) => r.kind === "PaymentProvider" && r.overall === "verified");
+  const suppliers = withData.filter((r) => r.kind === "Supplier" && r.overall === "verified"); // claims that failed a check are not counted
   const checks: ReviewCheck[] = [];
 
   // 2) Shop-level checks.

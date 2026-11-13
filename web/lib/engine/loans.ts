@@ -63,11 +63,17 @@ export async function getLoanDecision(shopId: string, amountInr: number, months:
   const stacking = (s.checks[shopId] ?? []).filter((t) => s.now < t + 30 * DAY).length;
   const rules: LoanRule[] = [];
 
+  const notCounted = review.issuers.filter((i) => i.failedWhy).map((i) => `${i.issuerName}: ${i.failedWhy}`).join(" ");
+  const tail = notCounted ? ` Not counted: ${notCounted}` : "";
+  const named = review.issuers.map((i) => i.issuerName).join(", ");
+  const noPaymentApp = !review.issuers.some((i) => i.kind === "PaymentProvider" && i.overall === "verified");
   rules.push(usable.length >= 2 && kinds.size >= 2
-    ? { id: "evidence", label: "Two independent kinds of evidence", result: "pass", reason: `${usable.map((i) => `${i.issuerName} (${i.kind === "PaymentProvider" ? "payment app" : "supplier"})`).join(" and ")} vouch, and the receipts back them up.` }
+    ? { id: "evidence", label: "Two independent kinds of evidence", result: "pass", reason: `${usable.map((i) => `${i.issuerName} (${i.kind === "PaymentProvider" ? "payment app" : "supplier"})`).join(" and ")} vouch, and the payment-app records back them up.${tail}` }
     : usable.length
-      ? { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: `Only ${usable.map((i) => i.issuerName).join(", ")} can be counted. A supplier AND a payment app are needed.` }
-      : { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: "No backed, current credentials yet. Unknown, not bad." });
+      ? { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: `Only ${usable.map((i) => i.issuerName).join(", ")} can be counted. A supplier AND a payment app are needed.${tail}` }
+      : review.issuers.length && noPaymentApp
+        ? { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: `Vouched only by ${named}, with no payment-app receipts. Needs an independent payment app. Unknown, not bad.${tail}` }
+        : { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: `No backed, current credentials yet. Unknown, not bad.${tail}` });
 
   for (const [id, label] of [["issuers_independent", "Issuers independent of each other"], ["ratio", "Purchases in line with receipts"], ["coverage", "Receipts cover 6 months"]] as const) {
     const c = check(id);

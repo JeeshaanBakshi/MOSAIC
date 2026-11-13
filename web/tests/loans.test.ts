@@ -11,12 +11,12 @@ import { suggestedAmount, distinctValidIssuers, distinctVerifiedIssuers } from "
   await withState(async () => {
     console.log("-- the demo's loan request");
     const open = await b.listLoans({ status: "requested" });
-    ok("Shop 1 asked for Rs 20,000 over 6 months", open.length === 1 && open[0].shopId === "shop-1" && open[0].amountInr === 20000 && open[0].shopName === "Shop 1");
+    ok("Shop 1 asked for Rs 20,000 over 6 months (and Shop 3 for Rs 1,00,000)", open.length === 2 && open[0].shopId === "shop-1" && open[0].amountInr === 20000 && open[0].shopName === "Shop 1" && open[1].shopId === "shop-3");
 
     console.log("-- the recommendation");
     let d = await b.getLoanDecision("shop-1", 20000, 6);
     ok("approve, limit Rs 22,500 (half of Issuer 1's verified Rs 45,167/month)", d.outcome === "approve" && d.limitInr === 22500, d.summary);
-    ok("Issuer 3' failed claim is not counted as evidence", !rule(d, "evidence").reason.includes("Quick"));
+    ok("Issuer 3's failed claim is not counted as evidence", !rule(d, "evidence").reason.includes("vouch") || !rule(d, "evidence").reason.split("Not counted")[0].includes("Issuer 3"));
     d = await b.getLoanDecision("shop-1", 30000, 6);
     ok("asking for more than the limit: approve UP TO the limit", d.outcome === "approve" && d.summary.includes("up to ₹22,500") && rule(d, "limit").result === "fail", d.summary);
     const m = await b.getLoanDecision("shop-2", 10000, 3);

@@ -41,6 +41,7 @@ export interface CredentialView {
 
 export interface Dispute {
   id: number;
+  chainId?: number; // the dispute's id on the real contract, when it was mirrored to Stellar
   credentialId: number;
   lender: string;
   resolved: boolean;
@@ -82,6 +83,8 @@ export interface VerifyResult {
 export interface Tx<T> {
   result: T;
   hash: string;
+  /** true = this hash is a REAL Stellar testnet transaction. false/absent = simulated, not sent to Stellar. */
+  onchain?: boolean;
 }
 
 // ---------- errors: named exactly like the Rust `Error` enum in the contract ----------
@@ -103,6 +106,8 @@ export type ContractErrorName =
   | "NotExpiredYet"
   | "NoStakeLeft"
   | "AlreadyApproved"
+  | "ShopNotInDefault"
+  | "NotAVerifier"
   | "RequestAlreadyPending"
   | "RequestNotFound"
   | "InsufficientBalance"; // really thrown by the USDC token contract, not MOSAIC
@@ -124,6 +129,8 @@ const MESSAGES: Record<ContractErrorName, string> = {
   NotExpiredYet: "The stake stays locked until the credential expires.",
   NoStakeLeft: "There is no stake left on this credential.",
   AlreadyApproved: "This account is already in the issuer registry.",
+  ShopNotInDefault: "A dispute can only be upheld after a lender reports that the shop defaulted.",
+  NotAVerifier: "Only a lender who checked this shop (and paid the fee) can do this.",
   RequestAlreadyPending: "This account already has a request waiting for the admin.",
   RequestNotFound: "There is no pending request from this account.",
   InsufficientBalance: "Not enough USDC in this account.",
@@ -140,7 +147,7 @@ export class ContractError extends Error {
 
 // ---------- errors from the BACKEND (the FastAPI rules engine), not the contract ----------
 
-export type ApiErrorCode = "InvalidInput" | "NoApplication" | "InvalidOtp" | "OtpExpired" | "TooManyAttempts" | "Forbidden" | "NotFound" | "RateLimited";
+export type ApiErrorCode = "InvalidInput" | "NoApplication" | "InvalidOtp" | "OtpExpired" | "TooManyAttempts" | "Forbidden" | "NotFound" | "RateLimited" | "NotSentToStellar";
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;

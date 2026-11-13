@@ -11,12 +11,14 @@ import { Badge, Button, Notice, PageTitle, Panel, Rows, Section } from "@/compon
 import { Applications } from "@/components/Applications";
 import { ShopReviewPanel } from "@/components/ShopReviewPanel";
 import { TestTools } from "@/components/TestTools";
+import { OnChainPanel } from "@/components/OnChainPanel";
 import { ActivityLog } from "@/components/ActivityLog";
 import { SystemLog } from "@/components/SystemLog";
 import { errorToast, txToast } from "@/components/toast";
+import { TxRef } from "@/components/TxRef";
 
 interface Snapshot { lender: number; escrow: number; issuer: Issuer | null }
-interface Outcome { id: number; upheld: boolean; hash: string; issuerName: string; before: Snapshot; after: Snapshot }
+interface Outcome { id: number; upheld: boolean; hash: string; onchain: boolean; issuerName: string; before: Snapshot; after: Snapshot }
 
 export default function AdminPage() {
   const role = useRole();
@@ -54,10 +56,10 @@ export default function AdminPage() {
     const cred = credentials.data?.find((c) => c.credential.id === d.credentialId);
     const issuerAddr = cred?.credential.issuer ?? "";
     const before = await snapshot(d, issuerAddr);
-    const { hash } = await contract.resolveDispute(me, d.id, upheld);
+    const { hash, onchain } = await contract.resolveDispute(me, d.id, upheld);
     const after = await snapshot(d, issuerAddr);
-    setOutcome({ id: d.id, upheld, hash, issuerName: cred?.issuerName ?? "issuer", before, after });
-    txToast(upheld ? `Dispute #${d.id} upheld: stake slashed to the lender` : `Dispute #${d.id} rejected`, hash);
+    setOutcome({ id: d.id, upheld, hash, onchain: !!onchain, issuerName: cred?.issuerName ?? "issuer", before, after });
+    txToast(upheld ? `Dispute #${d.id} upheld: stake slashed to the lender` : `Dispute #${d.id} rejected`, hash, onchain);
   });
 
   return (
@@ -135,6 +137,7 @@ export default function AdminPage() {
                     {c && <> from {c.issuerName}: &ldquo;{c.credential.summary}&rdquo;</>}
                   </p>
                   {c && <p className="text-sm text-quiet">Stake still locked: {usdc(c.credential.stake)}. Status: {c.status.toLowerCase()}.</p>}
+                  {!d.resolved && <p className="text-xs text-faint">Upholding needs a lender to have reported that the shop defaulted. Otherwise the contract refuses.</p>}
                 </div>
                 {!d.resolved && (
                   <div className="flex shrink-0 gap-2">
@@ -147,6 +150,8 @@ export default function AdminPage() {
           })}
         </Rows>
       </Section>
+
+      <OnChainPanel />
 
       <TestTools />
 
@@ -182,7 +187,7 @@ function OutcomePanel({ o }: { o: Outcome }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-4 truncate text-xs text-faint">Transaction hash {o.hash.slice(0, 20)}… (simulated)</p>
+      <p className="mt-4 text-xs text-faint"><TxRef hash={o.hash} onchain={o.onchain} label="Transaction hash" /></p>
     </Panel>
   );
 }

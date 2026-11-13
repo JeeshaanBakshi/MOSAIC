@@ -19,6 +19,8 @@ import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError,
 import { Hash } from "@/components/Hash";
 import { CheckList, type RowLike } from "@/components/CheckList";
 import { errorToast, txToast } from "@/components/toast";
+import { TxRef } from "@/components/TxRef";
+import { OnChainPanel } from "@/components/OnChainPanel";
 import { toast } from "sonner";
 
 const STACKING_ALERT = 3; // 3 or more lender checks in 30 days: the shop may be borrowing from several lenders at once
@@ -29,7 +31,7 @@ const OUTCOME: Record<LoanOutcome, { state: string; label: string }> = {
   not_enough_evidence: { state: "unknown", label: "Not enough evidence" },
 };
 
-interface Verified { shopId: string; payouts: Payout[]; hash: string }
+interface Verified { shopId: string; payouts: Payout[]; hash: string; onchain: boolean }
 
 export function LenderView() {
   const params = useSearchParams();
@@ -66,6 +68,7 @@ export function LenderView() {
   const issuerCount = distinctValidIssuers(items.map((e) => e.view));
   const verifiedCount = distinctVerifiedIssuers(items.map((e) => ({ issuer: e.view.credential.issuer, verified: e.view.status === "Valid" && e.overall === "verified" })));
   const rules: RowLike[] = (decision.data?.rules ?? []).map((r) => ({ label: r.label, result: r.result, reason: r.reason }));
+  const stackingRule = decision.data?.rules.find((r) => r.id === "stacking");
   const passedRules = rules.filter((r) => r.result === "pass");
   const failedRules = rules.filter((r) => r.result === "fail");
   const missingRules = rules.filter((r) => r.result === "unknown");
@@ -79,9 +82,9 @@ export function LenderView() {
 
   const verifyShop = (id: string) => run("verify", async () => {
     await backend.syncChecks(id); // make sure the contract knows which claims passed
-    const { result, hash } = await contract.verify(me, id);
-    setVerified({ shopId: id, payouts: result.payouts, hash });
-    txToast(`Checked ${id}. Paid ${fee ? usdc(fee) : "the fee"}.`, hash);
+    const { result, hash, onchain } = await contract.verify(me, id);
+    setVerified({ shopId: id, payouts: result.payouts, hash, onchain: !!onchain });
+    txToast(`Checked ${id}. Paid ${fee ? usdc(fee) : "the fee"}.`, hash, onchain);
   });
 
   const pick = (id: number, shop: string) => {
@@ -100,8 +103,8 @@ export function LenderView() {
   });
 
   const dispute = (credentialId: number) => run(`dispute-${credentialId}`, async () => {
-    const { result, hash } = await contract.openDispute(me, credentialId);
-    txToast(`Dispute #${result} opened on credential #${credentialId}. Now the admin decides.`, hash);
+    const { result, hash, onchain } = await contract.openDispute(me, credentialId);
+    txToast(`Dispute #${result} opened on credential #${credentialId}. Now the admin decides.`, hash, onchain);
   });
 
   return (
@@ -116,6 +119,8 @@ export function LenderView() {
           {!accountOf(role) && " Shopkeepers have no wallet, so they can't pay to check a shop."}
         </Notice>
       )}
+
+      <OnChainPanel />
 
       <Section title={`Waiting for a decision (${waiting.length})`}>
         {loans.error && <QueryError what="loan requests" onRetry={loans.retry} />}
@@ -162,10 +167,20 @@ export function LenderView() {
                 <p className="text-lg leading-snug">{decision.data.summary}</p>
               </div>
 
+              {stackingRule?.result === "fail" && <Notice tone="warn"><b className="font-medium">Possible loan stacking.</b> {stackingRule.reason}</Notice>}
+
               <div className="space-y-8">
                 <CheckGroup title="Failed" rows={failedRules} />
                 <CheckGroup title="Missing" note="Unknown is not bad: there is just no evidence yet." rows={missingRules} />
                 <CheckGroup title="Passed" rows={passedRules} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 text-sm text-quiet">
+                <Button variant="ghost" disabled={busy !== null} loading={busy === "stack"}
+                  onClick={() => run("stack", async () => { const { hash } = await contract.simulateOtherLenderChecks(loan.shopId, 2); txToast("Demo: 2 other lenders also checked this shop", hash); })}>
+                  Demo: 2 other lenders also check this shop
+                </Button>
+                <span>Shows the stacking warning (check 6).</span>
               </div>
 
               <div className="space-y-6 rounded-(--radius-panel) bg-wash p-6">
@@ -211,7 +226,7 @@ export function LenderView() {
         </summary>
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end">
           <div className="flex-1">
-            <Field label="Shop ID" hint="Try shop-1 or shop-2.">
+            <Field label="Shop ID" hint="Try shop-1, shop-2 or shop-3.">
               <input className={inputClass} list="shops" value={shopId} onChange={(e) => setShopId(e.target.value.trim())} />
               <datalist id="shops">{(shops.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</datalist>
             </Field>
@@ -235,6 +250,14 @@ export function LenderView() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-3 rounded-(--radius-panel) border border-line p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-quiet">A dispute can only be upheld after the shop defaults. If this shop did not repay a loan from you, report it here.</p>
+            <Button variant="secondary" disabled={busy !== null || !me} loading={busy === "default"}
+              onClick={() => run("default", async () => { const { hash, onchain } = await contract.reportDefault(me, verified.shopId); txToast(`${verified.shopId} reported as defaulted`, hash, onchain); })}>
+              Report a default
+            </Button>
+          </div>
+
           <details className="group">
             <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">
               <ChevronDown className="size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />Where your fee went
@@ -247,8 +270,8 @@ export function LenderView() {
                 </div>
               ))}
             </Rows>
-            <p className="mt-2 text-sm text-quiet">70% goes to issuers whose claims passed the checks.</p>
-            <p className="mt-2 text-xs text-quiet">Transaction <Hash value={verified.hash} label="transaction hash" /> (simulated)</p>
+            <p className="mt-2 text-sm text-quiet">70% goes to issuers whose claims passed the checks.{verified.onchain ? " These amounts were read from the real transaction." : ""}</p>
+            <p className="mt-2 text-xs text-quiet"><TxRef hash={verified.hash} onchain={verified.onchain} /></p>
           </details>
 
           {evidence.error && <QueryError what="the evidence" onRetry={evidence.retry} />}
@@ -291,7 +314,7 @@ function CredentialBlock({ item, dispute, busy, anyBusy, onDispute }: {
   const c = view.credential;
   const shown = view.status === "Valid" ? overall : view.status;
   const passedN = rows.filter((r) => r.result === "pass").length;
-  const anyFail = rows.some((r) => r.result === "fail");
+  const anyFail = rows.some((r) => r.result === "fail" && r.check !== 6);
 
   return (
     <article className="rounded-(--radius-panel) border border-line bg-surface p-6">

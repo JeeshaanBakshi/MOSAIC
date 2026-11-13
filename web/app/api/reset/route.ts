@@ -3,14 +3,27 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import * as demo from "@/lib/engine/demo";
-import { resetEverything, withState } from "@/lib/engine/store";
+import { read, resetEverything, withState } from "@/lib/engine/store";
 import { log } from "@/lib/server/log";
 
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { password?: unknown; loadDemo?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { password?: unknown; loadDemo?: unknown; ifEmpty?: unknown };
+
+    // First visit: load the demo only if nothing exists yet. Never wipes, so it needs no password.
+    if (body.ifEmpty === true) {
+      if (process.env.AUTO_DEMO === "off") return NextResponse.json({ ok: true, seeded: false });
+      const { result: seeded, version } = await withState(async () => {
+        const s = read();
+        const empty = s.txCount === 1 && Object.keys(s.issuers).length === 0 && Object.keys(s.db.applications).length === 0 && s.db.loans.length === 0;
+        if (empty) await demo.loadDemo();
+        return empty;
+      });
+      if (seeded) log("info", "auto_demo", { note: "First visit: demo loaded into empty data" });
+      return NextResponse.json({ ok: true, seeded, version }, { headers: { "Cache-Control": "no-store" } });
+    }
     const required = process.env.RESET_PASSWORD;
     if (required) {
       const given = typeof body.password === "string" ? body.password : "";

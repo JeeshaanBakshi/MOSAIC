@@ -15,8 +15,8 @@ resetEverything().then(() => withState(async () => {
 
   console.log("-- demo flow");
   await demo.loadDemo();
-  ok("3 credentials", (await c.getCredentials("shop-1")).length === 3);
-  ok("stakes locked: contract holds 90", (await c.getBalance((await import("../lib/engine/accounts")).CONTRACT_ADDRESS)) / U === 90);
+  ok("4 credentials on shop-1 (Sharma) + 1 on shop-3", (await c.getCredentials("shop-1")).length === 4 && (await c.getCredentials("shop-3")).length === 1);
+  ok("stakes locked: contract holds 150 (5 credentials x 30)", (await c.getBalance((await import("../lib/engine/accounts")).CONTRACT_ADDRESS)) / U === 150);
   ok("gupta 970", (await bal("gupta")) === 970);
 
   console.log("-- backend checks 2-4");
@@ -24,12 +24,16 @@ resetEverything().then(() => withState(async () => {
   const by = (n: string) => ev.find((e) => e.issuerName === n)!;
   ok("Issuer 1 verified", by("Issuer 1").overall === "verified");
   ok("Issuer 2 verified", by("Issuer 2").overall === "verified");
-  ok("Quick fails 2,3,4", by("Issuer 3").checks.every((x) => x.result === "fail"), by("Issuer 3").checks.map((x) => x.result).join(","));
+  const res = (n: string) => by(n).checks.map((x) => x.result).join(",");
+  ok("Issuer 3 (round-trip): payment match passes on gross, NET FLOW fails -> failed", res("Issuer 3") === "pass,pass,fail" && by("Issuer 3").overall === "failed", res("Issuer 3"));
+  ok("Issuer 4 (self-dealing): independence fails -> failed", res("Issuer 4") === "pass,fail,pass" && by("Issuer 4").overall === "failed", res("Issuer 4"));
+  ok("Issuer 4: the failure names the fields that matched", by("Issuer 4").checks[1].reason.includes("phone") && by("Issuer 4").checks[1].reason.includes("bank account"), by("Issuer 4").checks[1].reason);
+  ok("every check says whose data it used", by("Issuer 1").checks.every((x) => x.source.length > 0 && x.numbers.length > 0) && by("Issuer 1").checks[0].source.includes("Issuer 2"));
 
   console.log("-- verify: fee split");
   const v = await c.verify(A.asha.address, "shop-1");
   ok("the 2 issuers whose claims passed get 0.35 each", v.result.payouts.slice(0, 2).every((p) => p.amount === 3_500_000), JSON.stringify(v.result.payouts.map((p) => p.amount / U)));
-  ok("Issuer 3 (failed checks) earns nothing", v.result.payouts.length === 3 && v.result.payouts.every((p) => p.to !== A.quick.address));
+  ok("Issuers 3 and 4 (failed checks) earn nothing", v.result.payouts.length === 3 && v.result.payouts.every((p) => p.to !== A.quick.address && p.to !== A.selfdeal.address));
   ok("platform gets remainder 0.30", Math.abs((await bal("admin")) - 0.3) < 1e-6, String(await bal("admin")));
   ok("lender paid exactly 1", (await bal("asha")) === 999);
   ok("stacking counter = 1", v.result.checksLast30Days === 1);
@@ -41,6 +45,11 @@ resetEverything().then(() => withState(async () => {
   const d1 = await c.openDispute(A.asha.address, quickCred);
   await throws("one open dispute per credential", "DisputeAlreadyOpen", () => c.openDispute(A.asha.address, quickCred));
   await throws("non-admin cannot resolve", "NotAdmin", () => c.resolveDispute(A.asha.address, d1.result, true));
+  await throws("a dispute can't be upheld before the shop defaults", "ShopNotInDefault", () => c.resolveDispute(A.admin.address, d1.result, true));
+  await throws("only a lender who checked the shop can report a default", "NotAVerifier", () => c.reportDefault(A.gupta.address, "shop-1"));
+  await throws("only a lender who checked the shop can dispute", "NotAVerifier", () => c.openDispute(A.paylink.address, quickCred));
+  await c.reportDefault(A.asha.address, "shop-1");
+  ok("the shop is now recorded as defaulted", await c.hasDefaulted("shop-1"));
   const before = await bal("asha");
   await c.resolveDispute(A.admin.address, d1.result, true);
   ok("stake slashed to lender (+30)", (await bal("asha")) - before === 30);
@@ -78,18 +87,30 @@ resetEverything().then(() => withState(async () => {
   ok("no evidence yet -> not passed", !(await passedOf()));
   const v4 = await c.verify(A.asha.address, "shop-2");
   ok("not passed -> earns nothing", v4.result.payouts.length === 1 && v4.result.payouts[0].to === A.admin.address);
-  await b.submitEvidence(A.gupta.address, "shop-2", [40000, 41000, 39000, 42000, 40000, 40000], 0);
-  ok("evidence backs the claim -> passed", await passedOf());
+  const guptaAcct = b.verifiedAccountOf("gupta")!;
+  const feedOf = (out: number, back = 0) => Array.from({ length: 6 }, () => ({ receipts: 60000 + back, payees: { [guptaAcct]: { out, back } } }));
+  await b.submitSupplierSays(A.gupta.address, "shop-2", [90000, 90000, 90000, 90000, 90000, 90000], 0);
+  ok("what the supplier says NEVER passes its own claim", !(await passedOf()));
+  await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(40000));
+  ok("payment-app records back the claim -> passed", await passedOf());
   const v5 = await c.verify(A.asha.address, "shop-2");
   ok("passed -> issuer earns the whole 70%", v5.result.payouts[0].to === A.gupta.address && v5.result.payouts[0].amount === Math.round(0.7 * U));
-  await b.submitEvidence(A.gupta.address, "shop-2", [5000, 5000, 5000, 5000, 5000, 5000], 0);
-  ok("thin evidence -> no longer passed", !(await passedOf()));
+  await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(5000));
+  ok("thin payment-app records -> no longer passed", !(await passedOf()));
+  await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(40000, 38000));
+  ok("money coming straight back (payment-app data) -> net flow fails", !(await passedOf()) && (await b.getChecks("shop-2")).find((x) => x.credentialId === cid)!.checks[2].result === "fail");
+  await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(40000));
+  await b.submitSupplierSays(A.gupta.address, "shop-2", [1, 1, 1, 1, 1, 1], 99999);
+  ok("changing what the supplier says changes nothing (checks use the payment app)", await passedOf());
   await throws("only the admin can mark claims", "NotAdmin", () => c.markChecked(A.gupta.address, cid, true));
-  const badEvidence = async (name: string, f: () => Promise<unknown>) => { try { await f(); ok(name, false, "(did not throw)"); } catch (e) { ok(name, e instanceof ApiError && e.code === "InvalidInput", (e as Error).message.slice(0, 50)); } };
-  await badEvidence("all-zero evidence is refused (it would wipe the real evidence)", () => b.submitEvidence(A.gupta.address, "shop-2", [0, 0, 0, 0, 0, 0], 0));
-  await badEvidence("evidence for a shop we have no records of is refused", () => b.submitEvidence(A.gupta.address, "typo-shop", [1000, 1000, 1000, 1000, 1000, 1000], 0));
-  await badEvidence("negative evidence is refused", () => b.submitEvidence(A.gupta.address, "shop-2", [-5, 1000, 1000, 1000, 1000, 1000], 0));
-  await badEvidence("wrong number of months is refused", () => b.submitEvidence(A.gupta.address, "shop-2", [1000, 1000], 0));
+  const badApi = async (name: string, f: () => Promise<unknown>, code = "InvalidInput") => { try { await f(); ok(name, false, "(did not throw)"); } catch (e) { ok(name, e instanceof ApiError && e.code === code, (e as Error).message.slice(0, 50)); } };
+  await badApi("a supplier cannot share payment-app records", () => b.submitPaymentFeed(A.gupta.address, "shop-2", feedOf(40000)), "Forbidden");
+  await badApi("all-zero payment records are refused (it would wipe the real ones)", () => b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(0).map((m) => ({ ...m, receipts: 0 }))));
+  await badApi("records for a shop we have no profile of are refused", () => b.submitPaymentFeed(A.paylink.address, "typo-shop", feedOf(1000)));
+  await badApi("negative amounts are refused", () => b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(-5)));
+  await badApi("wrong number of months is refused", () => b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(1000).slice(0, 2)));
+  await badApi("supplier-says: all zeros refused", () => b.submitSupplierSays(A.gupta.address, "shop-2", [0, 0, 0, 0, 0, 0], 0));
+  await badApi("supplier-says: wrong number of months refused", () => b.submitSupplierSays(A.gupta.address, "shop-2", [1000, 1000], 0));
 
   console.log("-- failed tx changes nothing");
   const snapshot = await c.getBalance(A.paylink.address);

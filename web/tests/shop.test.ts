@@ -32,15 +32,15 @@ const chk = (r: any, id: string) => r.checks.find((x: any) => x.id === id);
   await withState(async () => {
     const r = await b.getShopReview("shop-1");
     ok("verdict: looks genuine", r.verdict === "looks_genuine", r.verdictReason);
-    ok("the reason says Issuer 3' claim is ignored", r.verdictReason.includes("Issuer 3"));
-    ok("3 issuers, 6 months of receipts each", r.issuers.length === 3 && r.issuers.every((i: any) => i.months.length === 6));
+    ok("the reason says the failed claims (Issuer 3, Issuer 4) are ignored", r.verdictReason.includes("Issuer 3") && r.verdictReason.includes("Issuer 4"));
+    ok("4 issuers, 6 months of records each", r.issuers.length === 4 && r.issuers.every((i: any) => i.months.length === 6));
     const g = r.issuers.find((i: any) => i.issuerName === "Issuer 1")!;
     ok("Issuer 1: credit note subtracted in August", g.months.find((m: any) => m.month === "2026-08")!.returned === 2000);
     ok("Issuer 1: average net purchases ~Rs 45,167", Math.round(g.avgNet) === 45167, String(Math.round(g.avgNet)));
     const q = r.issuers.find((i: any) => i.issuerName === "Issuer 3")!;
-    ok("Quick: Rs 5,000 paid, Rs 4,500 back every month -> net 500", q.months.every((m: any) => m.paid === 5000 && m.returned === 4500 && m.net === 500));
+    ok("Issuer 3: Rs 1,50,000 paid, Rs 1,40,000 back every month -> net 10,000", q.months.every((m: any) => m.paid === 150000 && m.returned === 140000 && m.net === 10000));
     ok("receipts cover all 6 months", chk(r, "coverage").result === "pass");
-    ok("purchases are 78% of receipts", chk(r, "ratio").result === "pass" && chk(r, "ratio").reason.includes("78%"), chk(r, "ratio").reason);
+    ok("purchases are 77% of receipts (failed claims are not counted)", chk(r, "ratio").result === "pass" && chk(r, "ratio").reason.includes("77%"), chk(r, "ratio").reason);
     ok("issuers independent of each other", chk(r, "issuers_independent").result === "pass");
     ok("claims backed: fails, naming Issuer 3, blaming the issuer not the shop", chk(r, "claims_backed").result === "fail" && chk(r, "claims_backed").reason.includes("not the shop"));
     const m = await b.getShopReview("shop-2");
@@ -53,9 +53,14 @@ const chk = (r: any, id: string) => r.checks.find((x: any) => x.id === id);
   await resetEverything();
   await withState(async () => {
     for (const r of ["gupta", "quick"] as const) await c.addIssuer(A.admin.address, A[r].address, A[r].name, "Supplier");
+    await c.addIssuer(A.admin.address, A.paylink.address, A.paylink.name, "PaymentProvider"); // shares records, but makes no claim of its own
     await c.issueCredential(A.quick.address, "shop-1", "buyer", "Buys Rs 2,00,000/month", "00");
     let r = await b.getShopReview("shop-1");
-    ok("only Quick's failed claim -> not enough evidence", r.verdict === "not_enough_evidence");
+    ok("only Quick's claim, no payment-app records -> not enough evidence", r.verdict === "not_enough_evidence");
+    const acct = (n: "gupta" | "quick") => b.verifiedAccountOf(n)!;
+    await b.submitPaymentFeed(A.paylink.address, "shop-1", Array.from({ length: 6 }, () => ({ receipts: 60000 + 190000, payees: { [acct("gupta")]: { out: 45000, back: 0 }, [acct("quick")]: { out: 200000, back: 190000 } } })));
+    r = await b.getShopReview("shop-1");
+    ok("with records, Quick's round-trip claim fails -> still not enough evidence", r.verdict === "not_enough_evidence");
     await c.issueCredential(A.gupta.address, "shop-1", "buyer", "Buys Rs 45,000/month", "00");
     r = await b.getShopReview("shop-1");
     ok("one honest supplier, no payment provider -> needs review (one kind of evidence)", r.verdict === "needs_review" && r.verdictReason.includes("one kind"), r.verdictReason);

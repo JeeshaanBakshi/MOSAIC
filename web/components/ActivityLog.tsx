@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { contract } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
 import { formatDate } from "@/lib/format";
-import { Hash } from "@/components/Hash";
+import { TxRef } from "@/components/TxRef";
 
 export function ActivityLog({ caller, title = "What the contract did" }: { caller?: string; title?: string }) {
   const { data } = useQuery(() => contract.listActivity());
@@ -28,7 +28,7 @@ export function ActivityLog({ caller, title = "What the contract did" }: { calle
             </div>
             <p className="mt-1 text-sm">{a.summary}</p>
             {a.effects.map((e, i) => <p key={i} className="text-sm text-pine">{e}</p>)}
-            <p className="mt-1 text-xs text-quiet">Transaction {a.n}, hash <Hash value={a.hash} label="transaction hash" /> (simulated)</p>
+            <p className="mt-1 text-xs text-quiet"><TxRef hash={a.hash} onchain={a.onchain} label={`Transaction ${a.n},`} /></p>
           </li>
         ))}
       </ol>

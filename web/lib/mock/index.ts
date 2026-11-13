@@ -72,8 +72,13 @@ async function resetCall(loadDemo: boolean): Promise<boolean> {
 export const demo = {
   /** Wipe ALL data (for every visitor) back to a fresh, empty start. Returns false if you cancelled the password prompt. */
   resetDemo: () => resetCall(false),
-  /** Wipe, then load the demo: 3 issuers approved and 3 credentials issued. */
+  /** Wipe, then load the demo: 4 issuers approved, 5 credentials issued, 2 loan requests. */
   loadDemo: () => resetCall(true),
+  /** First visit: fill the demo ONLY IF there is no data yet. Never wipes anything. Returns true if it loaded the demo. */
+  ensureDemo: async (): Promise<boolean> => {
+    const { json } = await post("/api/reset", { ifEmpty: true });
+    return (json as { seeded?: boolean }).seeded === true;
+  },
 };
 
 // ---------- things that are safe to use in the browser as they are ----------

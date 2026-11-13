@@ -17,7 +17,8 @@ export const PERSONAS: Record<Persona, { label: string; name: string; kind: Kind
   mehta: { label: "Shop 2 (shopkeeper, new)", name: "Shop 2, a new shop", kind: "shopkeeper", home: "/my-shop", shopId: "shop-2" },
   gupta: { label: "Issuer 1 (supplier)", name: "Issuer 1", kind: "issuer", home: "/issuer" },
   paylink: { label: "Issuer 2 (payment app)", name: "Issuer 2", kind: "issuer", home: "/issuer" },
-  quick: { label: "Issuer 3 (dishonest supplier)", name: "Issuer 3, dishonest", kind: "issuer", home: "/issuer" },
+  quick: { label: "Issuer 3 (round-tripping supplier)", name: "Issuer 3, round-tripping", kind: "issuer", home: "/issuer" },
+  selfdeal: { label: "Issuer 4 (self-dealing supplier)", name: "Issuer 4, self-dealing", kind: "issuer", home: "/issuer" },
   asha: { label: "Lender 1 (lender)", name: "Lender 1", kind: "lender", home: "/lender" },
   admin: { label: "MOSAIC admin (platform)", name: "Mosaic admin", kind: "admin", home: "/admin" },
 };
@@ -28,7 +29,7 @@ export const PERSONA_GROUPS: { label: string; kind: Kind }[] = [
   { label: "Lender", kind: "lender" },
   { label: "Platform", kind: "admin" },
 ];
-export const ISSUER_PERSONAS: Persona[] = ["gupta", "paylink", "quick"];
+export const ISSUER_PERSONAS: Persona[] = ["gupta", "paylink", "quick", "selfdeal"];
 
 /** The Stellar account behind a persona. Shopkeepers have none: they never touch crypto. */
 export function accountOf(p: Persona): Account | null {

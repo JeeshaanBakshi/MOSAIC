@@ -7,7 +7,8 @@ export interface RowLike {
   label: string;
   result: Result;
   reason: string;
-  source?: string; // where the answer came from, shown quietly
+  source?: string; // whose data the answer came from, shown quietly
+  numbers?: string; // the figures the verdict used
 }
 
 const ICON = {
@@ -31,6 +32,7 @@ export function CheckList({ rows }: { rows: RowLike[] }) {
                 {r.source && <span className="text-xs text-faint">{r.source}</span>}
               </div>
               <p className="mt-1 text-sm leading-relaxed text-quiet">{r.reason}</p>
+              {r.numbers && <p className="mt-1 text-xs leading-relaxed text-faint">Numbers: {r.numbers}</p>}
             </div>
           </li>
         );

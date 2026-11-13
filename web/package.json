@@ -7,12 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:engine": "MAX_CODES_PER_HOUR=1000 tsx --conditions=react-server tests/rules.test.ts && MAX_CODES_PER_HOUR=1000 tsx --conditions=react-server tests/onboarding.test.ts && tsx --conditions=react-server tests/shop.test.ts && tsx --conditions=react-server tests/loans.test.ts && tsx --conditions=react-server tests/ratelimit.test.ts",
+    "test:engine": "MAX_CODES_PER_HOUR=1000 tsx --conditions=react-server tests/rules.test.ts && MAX_CODES_PER_HOUR=1000 tsx --conditions=react-server tests/onboarding.test.ts && tsx --conditions=react-server tests/shop.test.ts && tsx --conditions=react-server tests/loans.test.ts && tsx --conditions=react-server tests/demo-cases.test.ts && STELLAR_RPC_URL=http://127.0.0.1:9 tsx --conditions=react-server tests/chain.test.ts && tsx --conditions=react-server tests/ratelimit.test.ts",
     "test:cloud": "bash tests/run-cloud.sh",
     "test:e2e": "bash tests/run-e2e.sh",
     "test": "npm run test:engine && npm run test:cloud && npm run test:e2e"
   },
   "dependencies": {
+    "@creit.tech/stellar-wallets-kit": "^2.8.0",
+    "@stellar/stellar-sdk": "^17.4.0",
     "@upstash/redis": "^1.41.0",
     "@xyflow/react": "^12.12.1",
     "lucide-react": "^1.72.0",

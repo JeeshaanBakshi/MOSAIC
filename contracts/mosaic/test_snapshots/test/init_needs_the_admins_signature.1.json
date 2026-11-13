@@ -42,6 +42,12 @@
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
                 },
                 {
+                  "i128": "10000000"
+                },
+                {
+                  "u32": 7000
+                },
+                {
                   "i128": "300000000"
                 }
               ]
@@ -158,6 +164,14 @@
                           },
                           {
                             "key": {
+                              "symbol": "issuer_share_bps"
+                            },
+                            "val": {
+                              "u32": 7000
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "stake_amount"
                             },
                             "val": {
@@ -171,6 +185,14 @@
                             "val": {
                               "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
                             }
+                          },
+                          {
+                            "key": {
+                              "symbol": "verify_fee"
+                            },
+                            "val": {
+                              "i128": "10000000"
+                            }
                           }
                         ]
                       }
@@ -180,6 +202,18 @@
                         "vec": [
                           {
                             "symbol": "NextCredId"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "u64": "1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "vec": [
+                          {
+                            "symbol": "NextDisputeId"
                           }
                         ]
                       },

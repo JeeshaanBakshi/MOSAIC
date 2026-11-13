@@ -7,7 +7,7 @@ const codeFor = async (email: string) => (await b.getInbox(email))[0].body.match
 const res = (r: any, id: string) => r.checks.find((x: any) => x.id === id).result;
 
 resetEverything().then(() => withState(async () => {
-  const gupta = A.gupta.address, quick = A.quick.address, pay = A.paylink.address;
+  const gupta = A.gupta.address, quick = A.selfdeal.address, pay = A.paylink.address;
   const g = b.exampleApplication("gupta")!;
 
   console.log("-- form validation");
@@ -44,12 +44,12 @@ resetEverything().then(() => withState(async () => {
   const p = b.exampleApplication("paylink")!; await b.submitApplication(pay, p); await b.verifyEmail(pay, await codeFor(p.email));
   r = (await b.getReview(pay))!;
   ok("Issuer 2: licence check passes, label is RBI", r.verdict === "recommend_approve" && r.checks[0].label.includes("RBI"));
-  const q = b.exampleApplication("quick")!; await b.submitApplication(quick, q); await b.verifyEmail(quick, await codeFor(q.email));
+  const q = b.exampleApplication("selfdeal")!; await b.submitApplication(quick, q); await b.verifyEmail(quick, await codeFor(q.email));
   r = (await b.getReview(quick))!;
-  ok("Quick: independence FAILS (shares the shop's phone)", res(r, "independence") === "fail" && r.checks.find((x) => x.id === "independence")!.reason.includes("Shop 1"));
-  ok("Quick: trading history FAILS (sells to 1 shop)", res(r, "trading") === "fail");
-  ok("Quick: registration + bank still pass", res(r, "registration") === "pass" && res(r, "bank") === "pass");
-  ok("Quick -> recommend reject", r.verdict === "recommend_reject");
+  ok("Issuer 4: independence FAILS (shares the shop's phone)", res(r, "independence") === "fail" && r.checks.find((x) => x.id === "independence")!.reason.includes("Shop 1"));
+  ok("Issuer 4: trading history FAILS (sells to 1 shop)", res(r, "trading") === "fail");
+  ok("Issuer 4: registration + bank still pass", res(r, "registration") === "pass" && res(r, "bank") === "pass");
+  ok("Issuer 4 -> recommend reject", r.verdict === "recommend_reject");
 
   console.log("-- edge cases for the checks");
   const stranger = "GSTRANGER";
@@ -69,7 +69,7 @@ resetEverything().then(() => withState(async () => {
 
   console.log("-- the approval rule + manual review");
   r = (await b.getReview(quick))!;
-  ok("Quick: approval BLOCKED without a manual review", !r.approval.allowed);
+  ok("Issuer 4: approval BLOCKED without a manual review", !r.approval.allowed);
   await b.saveManualReview(quick, { independence: true, trading: true }, "");
   ok("still blocked: no note", !(await b.getReview(quick))!.approval.allowed);
   await b.saveManualReview(quick, { independence: true }, "Called the owner.");
@@ -100,10 +100,10 @@ resetEverything().then(() => withState(async () => {
   ok("requests list", (await c.listIssuerRequests()).length === 0);
 
 })).then(() => resetEverything()).then(() => withState(async () => {
-  const quick = A.quick.address;
+  const quick = A.selfdeal.address;
   console.log("-- Load demo goes through the new path");
   await demo.loadDemo();
-  ok("3 approved issuers + 3 credentials after Load demo", (await c.listIssuers()).length === 3 && (await c.getCredentials("shop-1")).length === 3);
+  ok("4 approved issuers + 5 credentials after Load demo", (await c.listIssuers()).length === 4 && (await c.getCredentials("shop-1")).length === 4 && (await c.getCredentials("shop-3")).length === 1);
   ok("demo applications are stored off-chain", (await b.getApplication(quick))?.emailVerified === true);
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

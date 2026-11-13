@@ -10,8 +10,9 @@ import "server-only";
 //   build the transaction -> simulate (free dry run) -> wallet signs -> send -> wait for the ledger.
 //   Keep the function names, arguments and return shapes, and no page needs to change.
 
-import { ACCOUNTS, CONTRACT_ADDRESS, nameOf } from "./accounts";
-import { START_TIME, read, setNow, transact, type State } from "./store";
+import { ACCOUNTS, CONTRACT_ADDRESS, accountByAddress, nameOf, type RoleId } from "./accounts";
+import { START_TIME, chainAllowed, patchState, read, restoreState, setNow, transact, type State } from "./store";
+import { ChainError, arg, chainEnabled, findCredential, invoke, publicKeyOf, roleOfPublicKey, type ChainResult } from "../server/chain";
 import { ContractError } from "./types";
 import type {
   Config, Credential, CredentialView, Dispute, Issuer, IssuerKind, IssuerRequest, Payout, Status, Tx, VerifyResult,
@@ -53,6 +54,42 @@ function transfer(s: State, from: string, to: string, amount: number, effects: s
 
 function recentChecks(s: State, shopId: string): number[] {
   return (s.checks[shopId] ?? []).filter((t) => s.now < t + STACKING_WINDOW);
+}
+
+// ---------- mirroring to the real chain ----------
+// Every write is made in the simulation first (so the rules are checked as before), then sent to the real contract on
+// Stellar testnet. If the chain refuses, the simulated change is undone and the caller gets a "Not sent to Stellar" error.
+// If mirroring is off (no keys, or the demo is loading) the transaction stays "simulated" and says so.
+
+const roleOf = (address: string): RoleId | null => accountByAddress(address)?.id ?? null;
+const mirrorOn = () => chainEnabled() && chainAllowed();
+function needRole(address: string): RoleId {
+  const r = roleOf(address);
+  if (!r) throw new ChainError(`${nameOf(address)} has no testnet account on the server`);
+  return r;
+}
+
+/**
+ * `send` returns the chain result, or null when there is nothing to send (for example the credential only exists in the
+ * simulation). That transaction then stays "simulated". `result` can replace the simulated result with the real one.
+ */
+async function mirror<T>(
+  snap: State, tx: { result: T; hash: string }, send: () => Promise<ChainResult | null>,
+  after?: (c: ChainResult, draft: State) => void, result?: (c: ChainResult, simulated: T) => T,
+): Promise<Tx<T>> {
+  if (!mirrorOn()) return { ...tx, onchain: false };
+  try {
+    const c = await send();
+    if (!c || !c.hash) return { ...tx, onchain: false };
+    patchState((s) => {
+      s.activity[0] = { ...s.activity[0], hash: c.hash, onchain: true };
+      after?.(c, s);
+    });
+    return { result: result ? result(c, tx.result) : tx.result, hash: c.hash, onchain: true };
+  } catch (e) {
+    restoreState(snap); // the chain said no: undo the simulated change too
+    throw e;
+  }
 }
 
 function mustBeAdmin(s: State, caller: string) {
@@ -111,12 +148,14 @@ export async function getIssuerRequest(address: string): Promise<IssuerRequest |
 export async function addIssuer(admin: string, issuer: string, name: string, kind: IssuerKind): Promise<Tx<null>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `add_issuer(issuer, name, kind)`, signed by the admin.
-  return transact("add_issuer", admin, (s) => {
+  const snap = structuredClone(read());
+  const tx = transact("add_issuer", admin, (s) => {
     mustBeAdmin(s, admin);
     s.issuers[issuer] = { address: issuer, name, kind, active: true, upheldClaims: 0 };
     delete s.issuerRequests[issuer]; // approving settles any waiting request
     return { result: null, summary: `${name} approved as ${kind === "Supplier" ? "a supplier" : "a payment provider"}` };
   });
+  return mirror(snap, tx, () => invoke("admin", "add_issuer", [arg.addr(publicKeyOf(needRole(issuer))), arg.str(name), arg.kind(kind)], { ignoreErrors: ["AlreadyApproved"] }));
 }
 
 /**
@@ -139,11 +178,15 @@ export async function suspendIssuer(admin: string, issuer: string): Promise<Tx<n
 export async function resolveDispute(admin: string, id: number, upheld: boolean): Promise<Tx<{ slashed: number }>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `resolve_dispute(admin, id, upheld)`, signed by the admin.
-  return transact("resolve_dispute", admin, (s, fx) => {
+  const snap = structuredClone(read());
+  const chainDisputeId = read().disputes[id]?.chainId;
+  const tx = transact("resolve_dispute", admin, (s, fx) => {
     mustBeAdmin(s, admin);
     const dispute = s.disputes[id];
     if (!dispute) throw new ContractError("DisputeNotFound");
     if (dispute.resolved) throw new ContractError("DisputeAlreadyResolved");
+    // Fraud check 5: no default, no slash.
+    if (upheld && s.defaults[s.credentials[dispute.credentialId]?.shopId] === undefined) throw new ContractError("ShopNotInDefault");
 
     dispute.resolved = true;
     dispute.upheld = upheld;
@@ -165,6 +208,10 @@ export async function resolveDispute(admin: string, id: number, upheld: boolean)
     }
     return { result: { slashed }, summary };
   });
+  return mirror(snap, tx, async () => {
+    if (chainDisputeId === undefined) return null; // the dispute only exists in the simulation
+    return invoke("admin", "resolve_dispute", [arg.u64(chainDisputeId), arg.bool(upheld)]);
+  });
 }
 
 // ---------- issuers ----------
@@ -175,7 +222,8 @@ export async function issueCredential(
 ): Promise<Tx<number>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `issue_credential(issuer, shop_id, claim_type, summary, claim_hash, ttl_secs)`, signed by the issuer.
-  return transact("issue_credential", issuer, (s, fx) => {
+  const snap = structuredClone(read());
+  const tx = transact("issue_credential", issuer, (s, fx) => {
     const record = s.issuers[issuer];
     if (!record) throw new ContractError("IssuerNotApproved"); // fraud check 1
     if (!record.active) throw new ContractError("IssuerSuspended");
@@ -203,18 +251,29 @@ export async function issueCredential(
     (s.shopCreds[shopId] ??= []).push(id);
     return { result: id, summary: `${record.name} issued credential #${id} for ${shopId}` };
   });
+  return mirror(snap, tx, () => invoke(needRole(issuer), "issue_credential", [
+    arg.addr(publicKeyOf(needRole(issuer))), arg.str(shopId), arg.sym(claimType), arg.str(summary), arg.bytes32(claimHash), arg.u64(ttlSecs),
+  ]));
 }
 
 /** The backend rules engine (signing as the admin) records whether a claim passed fraud checks 2-4. */
 export async function markChecked(caller: string, id: number, passed: boolean): Promise<Tx<null>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `mark_checked(id, passed)`, signed by the admin.
-  return transact("mark_checked", caller, (s) => {
+  const snap = structuredClone(read());
+  const tx = transact("mark_checked", caller, (s) => {
     mustBeAdmin(s, caller);
     const cred = s.credentials[id];
     if (!cred) throw new ContractError("CredentialNotFound");
     cred.passed = passed;
     return { result: null, summary: `Credential #${id} ${passed ? "passed" : "did not pass"} the backend checks` };
+  });
+  const cred = read().credentials[id];
+  return mirror(snap, tx, async () => {
+    const issuerRole = roleOf(cred.issuer);
+    const onchain = issuerRole ? await findCredential(cred.shopId, issuerRole, cred.claimType) : null;
+    if (!onchain || onchain.passed === passed) return null; // not on the chain, or the chain already says so: nothing to send
+    return invoke("admin", "mark_checked", [arg.u64(Number(onchain.id)), arg.bool(passed)]);
   });
 }
 
@@ -222,12 +281,19 @@ export async function markChecked(caller: string, id: number, passed: boolean): 
 export async function revoke(issuer: string, id: number): Promise<Tx<null>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `revoke(issuer, id)`, signed by the issuer.
-  return transact("revoke", issuer, (s) => {
+  const snap = structuredClone(read());
+  const tx = transact("revoke", issuer, (s) => {
     const cred = s.credentials[id];
     if (!cred) throw new ContractError("CredentialNotFound");
     if (cred.issuer !== issuer) throw new ContractError("NotYourCredential");
     cred.revoked = true;
     return { result: null, summary: `Credential #${id} revoked (stake stays locked until it expires)` };
+  });
+  const cred = read().credentials[id];
+  return mirror(snap, tx, async () => {
+    const onchain = await findCredential(cred.shopId, needRole(issuer), cred.claimType);
+    if (!onchain || onchain.revoked) return null; // not on the chain: stays simulated
+    return invoke(needRole(issuer), "revoke", [arg.addr(publicKeyOf(needRole(issuer))), arg.u64(Number(onchain.id))]);
   });
 }
 
@@ -255,7 +321,8 @@ export async function releaseStake(issuer: string, id: number): Promise<Tx<numbe
 export async function verify(lender: string, shopId: string): Promise<Tx<VerifyResult>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `verify(lender, shop_id)`, signed by the lender. It transfers the fee inside the same transaction.
-  return transact("verify", lender, (s, fx) => {
+  const snap = structuredClone(read());
+  const tx = transact("verify", lender, (s, fx) => {
     const views = (s.shopCreds[shopId] ?? []).map((id) => viewOf(s, s.credentials[id]));
 
     // Who gets paid? Each distinct issuer with at least one VALID credential that PASSED the backend checks.
@@ -281,11 +348,41 @@ export async function verify(lender: string, shopId: string): Promise<Tx<VerifyR
     const recent = recentChecks(s, shopId);
     recent.push(s.now);
     s.checks[shopId] = recent;
+    if (!(s.verifiers[shopId] ??= []).includes(lender)) s.verifiers[shopId].push(lender); // only a lender who checked can dispute or report a default
 
     return {
       result: { credentials: views, checksLast30Days: recent.length, payouts },
       summary: `${nameOf(lender)} verified ${shopId}: ${payees.length} issuer(s) paid, ${recent.length} check(s) in the last 30 days`,
     };
+  });
+  // On the chain the fee is split by the contract. We show what it REALLY paid, read from the transaction's own events.
+  return mirror(snap, tx, () => invoke(needRole(lender), "verify", [arg.addr(publicKeyOf(needRole(lender))), arg.str(shopId)]),
+    (c, s) => {
+      const real = c.transfers.filter((t) => t.from === publicKeyOf(needRole(lender)));
+      s.activity[0].effects = real.map((t) => {
+        const r = roleOfPublicKey(t.to);
+        return `${Number(t.amount) / 1e7} USDC: ${nameOf(lender)} → ${r ? nameOf(ACCOUNTS[r].address) : `${t.to.slice(0, 4)}…${t.to.slice(-4)}`} (on Stellar)`;
+      });
+    },
+    (c, sim) => {
+      const real = c.transfers.filter((t) => t.from === publicKeyOf(needRole(lender)));
+      if (!real.length) return sim;
+      return { ...sim, payouts: real.map((t) => { const r = roleOfPublicKey(t.to); return { to: r ? ACCOUNTS[r].address : t.to, amount: Number(t.amount) }; }) };
+    });
+}
+
+/**
+ * MOCK-ONLY (demo): pretend other lenders also checked this shop in the last few days, so the stacking counter
+ * (fraud check 6) has something to show. No money moves. CONNECT: delete; on the real chain other lenders do this themselves.
+ */
+export async function simulateOtherLenderChecks(shopId: string, count = 2): Promise<Tx<number>> {
+  await sleep(LATENCY_MS);
+  const n = Math.min(5, Math.max(1, Math.round(Number(count)) || 2));
+  return transact("verify", "lender-2", (s) => {
+    const recent = recentChecks(s, shopId);
+    for (let i = 0; i < n; i++) recent.push(s.now - (i + 1) * 3 * DAY);
+    s.checks[shopId] = recent;
+    return { result: recent.length, summary: `Lender 2 and Lender 3 also checked ${shopId} (simulated): ${recent.length} check(s) in the last 30 days` };
   });
 }
 
@@ -293,9 +390,11 @@ export async function verify(lender: string, shopId: string): Promise<Tx<VerifyR
 export async function openDispute(lender: string, credentialId: number): Promise<Tx<number>> {
   await sleep(LATENCY_MS);
   // CONNECT: contract fn `open_dispute(lender, credential_id)`, signed by the lender.
-  return transact("open_dispute", lender, (s) => {
+  const snap = structuredClone(read());
+  const tx = transact("open_dispute", lender, (s) => {
     const cred = s.credentials[credentialId];
     if (!cred) throw new ContractError("CredentialNotFound");
+    if (!(s.verifiers[cred.shopId] ?? []).includes(lender)) throw new ContractError("NotAVerifier");
     if (cred.stake <= 0) throw new ContractError("NoStakeLeft");
     if (s.openDispute[credentialId]) throw new ContractError("DisputeAlreadyOpen");
     const id = s.nextDisputeId++;
@@ -303,6 +402,29 @@ export async function openDispute(lender: string, credentialId: number): Promise
     s.openDispute[credentialId] = id;
     return { result: id, summary: `${nameOf(lender)} opened dispute #${id} on credential #${credentialId}` };
   });
+  const cred = read().credentials[credentialId];
+  return mirror(snap, tx, async () => {
+    const onchain = await findCredential(cred.shopId, roleOf(cred.issuer) ?? "gupta", cred.claimType);
+    if (!onchain) return null; // the credential only exists in the simulation
+    return invoke<bigint>(needRole(lender), "open_dispute", [arg.addr(publicKeyOf(needRole(lender))), arg.u64(Number(onchain.id))]);
+  }, (c, s) => { s.disputes[tx.result].chainId = Number(c.value); });
+}
+
+/** A lender who checked a shop reports that it defaulted. Until then no dispute against its credentials can be upheld. */
+export async function reportDefault(lender: string, shopId: string): Promise<Tx<null>> {
+  await sleep(LATENCY_MS);
+  // CONNECT: contract fn `report_default(lender, shop_id)`, signed by the lender.
+  const snap = structuredClone(read());
+  const tx = transact("report_default", lender, (s) => {
+    if (!(s.verifiers[shopId] ?? []).includes(lender)) throw new ContractError("NotAVerifier");
+    s.defaults[shopId] = s.now;
+    return { result: null, summary: `${nameOf(lender)} reported that ${shopId} defaulted on a loan` };
+  });
+  return mirror(snap, tx, () => invoke(needRole(lender), "report_default", [arg.addr(publicKeyOf(needRole(lender))), arg.str(shopId)]));
+}
+
+export async function hasDefaulted(shopId: string): Promise<boolean> {
+  return read().defaults[shopId] !== undefined;
 }
 
 // ---------- reads (free: the real chain answers these with a simulation, no signature) ----------

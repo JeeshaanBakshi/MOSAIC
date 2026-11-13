@@ -2,6 +2,7 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import { emailConfigured } from "@/lib/server/email";
+import { CONTRACT_ID, chainEnabled } from "@/lib/server/chain";
 import { getStorage, storageKind } from "@/lib/server/storage";
 
 export async function GET() {
@@ -20,6 +21,8 @@ export async function GET() {
       storageReachable,
       email: emailConfigured() ? "configured" : "not_configured", // "not_configured": codes show in an on-screen inbox, nothing is emailed
       resetProtected: !!process.env.RESET_PASSWORD,
+      chain: chainEnabled() ? "mirroring_to_testnet" : "simulation_only", // are website actions also sent to the real contract? (no keys shown)
+      contract: CONTRACT_ID,
     },
     { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );

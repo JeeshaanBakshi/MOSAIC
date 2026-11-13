@@ -12,7 +12,8 @@ import { ApiError, ContractError } from "@/lib/engine/types";
 import { log } from "@/lib/server/log";
 
 const NAMESPACES: Record<string, Record<string, unknown>> = { contract, backend };
-const READS = /^(get|list|checks|email)/; // function names that only read
+export const maxDuration = 60; // a call that is also sent to Stellar waits for the ledger (about 5 to 10 seconds)
+const READS = /^(get|has|list|checks|email)/; // function names that only read
 
 type Outcome = { ok: true; data: unknown } | { ok: false; error: { kind: "contract" | "api"; code: string; message: string } };
 

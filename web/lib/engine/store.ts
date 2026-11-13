@@ -16,6 +16,7 @@ import { ACCOUNTS, CONTRACT_ADDRESS, ROLE_IDS, USDC_ADDRESS, nameOf } from "./ac
 import { USDC_UNIT } from "../format";
 import type { Config, Credential, Dispute, Issuer, IssuerKind, IssuerRequest } from "./types";
 import { fakeHash } from "./util";
+import type { PaymentFeed } from "./rules";
 
 export interface ActivityItem {
   n: number; // transaction number
@@ -24,6 +25,7 @@ export interface ActivityItem {
   caller: string; // who signed it
   summary: string;
   effects: string[]; // what moved, e.g. "30 USDC: Issuer 1 → MOSAIC contract"
+  onchain?: boolean; // true = `hash` is a real Stellar testnet transaction; otherwise it is simulated
   time: number;
 }
 
@@ -88,15 +90,16 @@ export interface LoanRequest {
   recommendation?: "approve" | "review" | "not_enough_evidence"; // what the checks said at decision time
 }
 
-/** What an issuer says moved between it and a shop over the 6-month window. Stands in for a bank / UPI data feed. */
-export interface Evidence {
-  months: number[]; // 6 monthly totals in rupees (purchases for a supplier, settlements for a payment app)
-  refundPerMonth: number; // money sent back to the shop each month
+/** What a SUPPLIER says it sold the shop. Shown as "Supplier says", never used to pass a check. */
+export interface SupplierSays {
+  months: number[]; // 6 monthly purchase totals the supplier typed in (rupees)
+  sentBackPerMonth: number; // what the supplier says it sent back
   submittedAt: number;
 }
 
 export interface Db {
-  evidence: Record<string, Evidence>; // "issuerAddress|shopId" -> evidence
+  feeds: Record<string, PaymentFeed & { submittedAt: number }>; // "paymentAppAddress|shopId" -> the payment app's records (what the checks use)
+  says: Record<string, SupplierSays>; // "supplierAddress|shopId" -> what the supplier typed (display only)
   loans: LoanRequest[]; // newest first
   applications: Record<string, Application>; // by address
   manualReviews: Record<string, ManualReview>;
@@ -118,6 +121,8 @@ export interface State {
   openDispute: Record<number, number>; // credential id -> open dispute id
   nextDisputeId: number;
   checks: Record<string, number[]>; // shop id -> times of lender checks (fraud check 6)
+  verifiers: Record<string, string[]>; // shop id -> lenders who paid to check it (only they can dispute or report a default)
+  defaults: Record<string, number>; // shop id -> when a lender reported a default (a dispute can only be upheld after this)
   balances: Record<string, number>; // USDC balance of every address, contract included
   now: number; // the fake clock, in unix seconds
   txCount: number;
@@ -126,7 +131,7 @@ export interface State {
   version: number; // bumps on every change so every browser knows to re-read
 }
 
-const SCHEMA = 6; // bump when State changes shape, so old saved data is thrown away
+const SCHEMA = 8; // bump when State changes shape, so old saved data is thrown away
 
 /** The fake clock starts on 11 Nov 2026. Fixed, so the demo looks the same every time. */
 export const START_TIME = Date.UTC(2026, 10, 11, 9, 0, 0) / 1000;
@@ -155,6 +160,8 @@ export function freshState(): State {
     openDispute: {},
     nextDisputeId: 1,
     checks: {},
+    verifiers: {},
+    defaults: {},
     balances,
     now: START_TIME,
     txCount: 1,
@@ -169,7 +176,7 @@ export function freshState(): State {
         time: START_TIME,
       },
     ],
-    db: { evidence: {}, loans: [], applications: {}, manualReviews: {}, outbox: [], auditLog: [], sends: {}, nextId: 1 },
+    db: { feeds: {}, says: {}, loans: [], applications: {}, manualReviews: {}, outbox: [], auditLog: [], sends: {}, nextId: 1 },
     version: 0,
   };
 }
@@ -179,6 +186,7 @@ export function freshState(): State {
 interface Ctx {
   state: State;
   dirty: boolean;
+  noChain?: boolean; // true while loading the demo: those writes stay simulated and are not sent to Stellar
 }
 const als = new AsyncLocalStorage<Ctx>();
 
@@ -289,5 +297,31 @@ export function setNow(now: number) {
   const draft = structuredClone(read());
   draft.now = now;
   draft.version += 1;
+  commit(draft);
+}
+
+// ---------- mirroring to the real chain ----------
+
+/** Run `body` with the mirror to Stellar switched off (the demo loader: dozens of transactions, all simulated). */
+export async function withoutChain<T>(body: () => Promise<T>): Promise<T> {
+  const c = ctx();
+  const before = c.noChain;
+  c.noChain = true;
+  try { return await body(); } finally { c.noChain = before; }
+}
+export const chainAllowed = () => !ctx().noChain;
+
+/** Change the state directly (used to attach a real transaction hash to the activity entry just written). */
+export function patchState(body: (draft: State) => void) {
+  const draft = structuredClone(read());
+  body(draft);
+  draft.version += 1;
+  commit(draft);
+}
+
+/** Put a saved copy back: used when the chain refused a call, so the simulated change is undone too. */
+export function restoreState(snapshot: State) {
+  const draft = structuredClone(snapshot);
+  draft.version = read().version + 1;
   commit(draft);
 }

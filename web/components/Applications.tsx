@@ -66,8 +66,8 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
     toast.success("Manual review saved");
   });
   const approve = () => run("approve", async () => {
-    const { hash } = await contract.addIssuer(me, request.address, a.businessName, a.kind);
-    txToast(`${a.businessName} approved and added to the registry`, hash);
+    const { hash, onchain } = await contract.addIssuer(me, request.address, a.businessName, a.kind);
+    txToast(`${a.businessName} approved and added to the registry`, hash, onchain);
   });
   const reject = () => run("reject", async () => {
     const { hash } = await contract.rejectIssuerRequest(me, request.address);

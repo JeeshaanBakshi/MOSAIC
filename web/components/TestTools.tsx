@@ -29,12 +29,12 @@ export function TestTools() {
   return (
     <Section id="tools" title="Test tools" aside={`App date: ${now.data ? formatDate(now.data) : "…"}`}>
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={busy} onClick={() => run("Skipped 30 days", () => contract.advanceTime(30))}><CalendarPlus className="size-4" aria-hidden />30 days</Button>
-        <Button variant="secondary" disabled={busy} onClick={() => run("Skipped 90 days", () => contract.advanceTime(90))}><CalendarPlus className="size-4" aria-hidden />90 days</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => run("Skipped 30 days", () => contract.advanceTime(30))}><CalendarPlus className="size-4" aria-hidden />30 days (simulation only)</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => run("Skipped 90 days", () => contract.advanceTime(90))}><CalendarPlus className="size-4" aria-hidden />90 days (simulation only)</Button>
         <Button variant="secondary" disabled={busy} title="Re-read everything from the cloud"
           onClick={() => { noteVersion(getVersion() + 0.001); toast.success("Refreshed from the cloud"); }}><RefreshCw className="size-4" aria-hidden />Refresh</Button>
         <Button variant="secondary" disabled={busy}
-          onClick={() => window.confirm("Reset all data for everyone and load the demo (3 issuers, 3 credentials, 1 loan request)?") && run("Demo loaded: 3 issuers, 3 credentials and Shop 1's loan request", () => demo.loadDemo())}>
+          onClick={() => window.confirm("Reset all data for everyone and load the demo (4 issuers, 5 credentials, 2 loan requests)?") && run("Demo loaded: 4 issuers, 5 credentials and 2 loan requests", () => demo.loadDemo())}>
           <Database className="size-4" aria-hidden />Load demo
         </Button>
         <Button variant="danger" disabled={busy} title="Wipes all data in the cloud and starts again from empty"

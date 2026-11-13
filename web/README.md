@@ -60,7 +60,7 @@ All variables are listed in [`.env.example`](.env.example).
 
 ## Reset
 
-The red **Reset all data** button (top bar), and any URL ending in `?reset=1`, **wipe everything in the cloud for every visitor**: issuers, applications, credentials, disputes, balances, both logs, the fake clock. The app starts again from empty. If `RESET_PASSWORD` is set, the app asks for it. **Load demo** does the same wipe, then approves 3 issuers and issues 3 credentials.
+The red **Reset all data** button (top bar), and any URL ending in `?reset=1`, **wipe everything in the cloud for every visitor**: issuers, applications, credentials, disputes, balances, both logs, the fake clock. The app starts again from empty. If `RESET_PASSWORD` is set, the app asks for it. **Load demo** does the same wipe, then approves 4 issuers, issues 5 credentials and posts 2 loan requests. The demo also **loads by itself on the first visit**, but only when there is no data yet (set `AUTO_DEMO=off` to turn that off, as the tests do).
 
 ## Logs
 
@@ -72,7 +72,21 @@ The red **Reset all data** button (top bar), and any URL ending in `?reset=1`, *
 
 The home page asks who you are: a shopkeeper, a supplier or payment app, a lender, or the platform admin. Each has its own page. **"You are"** in the side menu switches person at any time (shopkeepers: Sharma General Store, or Mehta Kirana which is new and has no credentials; issuers: Gupta Wholesale, PayLink, Quick Traders; lender: Asha Microfinance). The **Admin** page holds the test tools, the balances and both logs, so the other pages stay clean.
 
-Quick start: Admin, then **Load demo**. That creates three issuers, three claims about Sharma General Store and a loan request waiting for a lender.
+Quick start: just open the site. The demo loads itself on the first visit, and **Try the demo with Sharma Store** on the home page opens Sharma (Shop 1). (In the app the people are named Shop 1 = Sharma Store, Issuer 1 = the honest supplier, Issuer 2 = the payment app, Issuer 3 = QuickSupply, Issuer 4 = the self-dealing supplier, Lender 1.)
+
+### The fraud demo: 5 cases on the Lender page
+
+On the Lender page press **Review**, then **Check the shop**. Each check shows Passed / Failed / Unknown, the numbers it used and whose data they came from.
+
+| # | Case | What the lender sees |
+|---|---|---|
+| 1 | **Sharma Store (honest)**: a supplier and a payment app | all checks pass, "Approve", limit ₹22,500 |
+| 2 | **Fake shop (Shop 3)**: listed and vouched for by Issuer 3 alone, no payment-app receipts | "Needs an independent payment app. Unknown." No limit |
+| 3 | **Self-dealing (Issuer 4)** shares the shop's phone and bank account | independence fails, the claim is "Not counted" |
+| 4 | **Inflated + round trip (Issuer 3)** claims ₹1,50,000/month; the payment app shows ₹1,50,000 out and ₹1,40,000 back | payment match passes on the gross, **net flow fails** (net ₹10,000 vs ₹1,05,000 needed), "Not counted" |
+| 5 | **Stacking**: press "Demo: 2 other lenders also check this shop" on Sharma | 3 checks in 30 days: a stacking warning, limit halved |
+
+**Payment match (check 2) and net flow (check 4) use payment-app data, never the supplier's own numbers.** A payment app shares, month by month, the shop's receipts, what it paid out per payee account, and what came back from each payee. A supplier's claim of ₹X/month counts only if the shop paid that supplier's *verified* account at least 70% of X; money sent back by that account the same month is subtracted and the test is run again. What the supplier types is saved and shown as "Supplier says" but is never used to pass a check.
 
 ### The shopkeeper (My shop)
 
@@ -126,7 +140,7 @@ Issuers sign credentials and lock **30 USDC** each. The shop's trust graph light
 ## Tests
 
 ```sh
-npm run test:engine   # rules: contract (32), onboarding (46), shop review (27), loans (24), rate limit (5)
+npm run test:engine   # rules: contract (53), onboarding (46), shop review (28), loans (29), rate limit (5), the 5 demo cases (23)
 npm run test:cloud    # the real Upstash and Resend client code against local stand-ins (31)
 npm run test:e2e      # builds the app and clicks through it in Chrome (needs Google Chrome; CHROME_PATH if not at the macOS default)
 npm test              # all three
