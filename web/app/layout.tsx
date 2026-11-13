@@ -14,7 +14,7 @@ const space = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MOSAIC: trading history as credit history",
-  description: "Testnet prototype: real Stellar testnet transactions, test USDC, made-up shop data.",
+  description: "Testnet prototype: a Stellar testnet contract, test USDC, made-up shop data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -53,6 +53,17 @@ export function ShopView({ id, embedded = false }: { id: string; embedded?: bool
           <p className="text-sm text-quiet">{graph.loading ? <Skeleton className="h-5 w-48" /> : "No credentials yet. Unknown, not bad."}</p>
         )}
         <div className="mt-4"><GraphLegend /></div>
+        {items.some((e) => e.overall === "failed") && (
+          <div className="mt-6 space-y-2" data-not-counted>
+            <h3 className="text-sm font-medium">Not counted</h3>
+            <ul className="space-y-1 text-sm text-quiet">
+              {items.filter((e) => e.overall === "failed").map((e) => {
+                const f = e.rows.find((r) => r.result === "fail" && r.check !== 6);
+                return <li key={e.view.credential.id}><span className="font-medium text-ink">{e.view.issuerName}:</span> {f?.reason ?? "did not pass the checks."}</li>;
+              })}
+            </ul>
+          </div>
+        )}
       </Section>
 
       {items.length > 0 && (

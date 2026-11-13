@@ -2,22 +2,15 @@
 // "On-chain": where the real contract lives, whether this site is sending its actions there, this session's REAL
 // transactions, and an optional READ-ONLY wallet connection (Freighter via Stellar Wallets Kit). It never signs anything.
 // The demo works fully without a wallet.
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ExternalLink, Wallet } from "lucide-react";
 import { contract } from "@/lib/mock";
+import { useChainMode } from "@/lib/useChainMode";
 import { useQuery } from "@/lib/hooks";
 import { CONTRACT_ID, contractUrl, short, txUrl } from "@/lib/format";
 import { Badge, Button, Panel } from "@/components/ui";
 
 const TESTNET_PASSPHRASE = "Test SDF Network ; September 2015";
-
-function useHealth() {
-  const [chain, setChain] = useState<"mirroring_to_testnet" | "simulation_only" | "unknown">("unknown");
-  useEffect(() => {
-    fetch("/api/health", { cache: "no-store" }).then((r) => r.json()).then((h) => setChain(h.chain ?? "unknown")).catch(() => setChain("unknown"));
-  }, []);
-  return chain;
-}
 
 function WalletConnect() {
   const [wallet, setWallet] = useState<{ address: string; network: string; passphrase: string } | null>(null);
@@ -70,18 +63,18 @@ function WalletConnect() {
 }
 
 export function OnChainPanel() {
-  const chain = useHealth();
+  const mode = useChainMode();
   const { data } = useQuery(() => contract.listActivity());
   const real = (data ?? []).filter((a) => a.onchain).slice(0, 8);
   return (
     <Panel className="space-y-6" id="onchain">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="text-lg font-medium tracking-tight">On-chain</h2>
-        {chain === "mirroring_to_testnet" && <Badge state="pass">Live on Stellar testnet</Badge>}
-        {chain === "simulation_only" && <Badge state="open">Demo mode</Badge>}
+        {mode === "live" && <Badge state="pass">Live on Stellar testnet</Badge>}
+        {mode === "demo" && <Badge state="open">Demo mode</Badge>}
       </div>
       <p className="max-w-2xl text-sm leading-relaxed text-quiet">
-        {chain === "mirroring_to_testnet"
+        {mode === "live"
           ? "Each check, dispute and slash on this site is also sent to the real MOSAIC contract on Stellar testnet. Every one shows a link you can open on Stellar Expert."
           : "The contract below is real and deployed on Stellar testnet. In this demo mode the site runs the same rules without sending transactions, so nothing here is on-chain yet. Real transactions are listed in the README."}
       </p>
@@ -94,7 +87,7 @@ export function OnChainPanel() {
       <div>
         <h3 className="text-sm font-medium">Real transactions this session ({real.length})</h3>
         {real.length === 0 ? (
-          <p className="mt-2 text-sm text-quiet">None yet. {chain === "simulation_only" ? "Demo mode: transactions are simulated." : "Check a shop, dispute a claim or revoke one, and its real transaction appears here."}</p>
+          <p className="mt-2 text-sm text-quiet">None yet. {mode === "demo" ? "Demo mode: transactions are simulated." : "Check a shop, dispute a claim or revoke one, and its real transaction appears here."}</p>
         ) : (
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
             {real.map((a) => (

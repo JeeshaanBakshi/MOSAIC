@@ -160,7 +160,7 @@ function ShopDashboard({ shopId }: { shopId: string }) {
                 <p className="mt-1 text-sm text-quiet">
                   {i.kind === "PaymentProvider" ? "Your payment app" : "Your supplier"} says {i.claimedMonthly ? `${rs(i.claimedMonthly)} a month` : "no amount"}.
                 </p>
-                {i.overall === "failed" && <p className="mt-1 text-sm text-clay">Your payments don&apos;t back this up, so lenders ignore it.</p>}
+                {i.overall === "failed" && <p className="mt-1 text-sm text-clay">Not counted: {i.failedReason ?? "it did not pass the checks"}</p>}
               </div>
             ))}
           </Rows>

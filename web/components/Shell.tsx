@@ -5,6 +5,7 @@ import { Suspense, useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Handshake, Info, Landmark, Menu, ShieldCheck, Store, X, type LucideIcon } from "lucide-react";
+import { useChainMode } from "@/lib/useChainMode";
 import { PERSONAS, PERSONA_GROUPS, PERSONA_IDS, setRole, useRole, type Persona } from "@/lib/session";
 
 const NAV: { href: string; label: string; Icon: LucideIcon }[] = [
@@ -29,11 +30,13 @@ function useIsDesktop() {
 
 export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const chainMode = useChainMode();
   const desktop = useIsDesktop(); // render ONE navigation, never both: two role switchers in the page would confuse screen readers and tests
   return (
     <div className="min-h-dvh lg:pl-64">
       <p className="border-b border-line bg-pine-soft px-4 py-2 text-center text-xs leading-relaxed text-pine-deep sm:text-sm">
-        <b className="font-medium">Testnet prototype:</b> real Stellar testnet transactions, test USDC, made-up shop data.
+        <b className="font-medium">Testnet prototype:</b>{" "}
+        {chainMode === "live" ? "real Stellar testnet transactions, test USDC, made-up shop data." : "simulated transactions (real ones linked in the README), test USDC, made-up shop data."}
       </p>
       {/* Large screens: fixed rail */}
       {desktop && (

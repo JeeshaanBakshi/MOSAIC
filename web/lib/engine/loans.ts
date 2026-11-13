@@ -76,9 +76,11 @@ export async function getLoanDecision(shopId: string, amountInr: number, months:
         ? { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: `Vouched only by ${named}, with no payment-app receipts. Needs an independent payment app. Unknown, not bad.${tail}` }
         : { id: "evidence", label: "Two independent kinds of evidence", result: "unknown", reason: `No backed, current credentials yet. Unknown, not bad.${tail}` });
 
-  for (const [id, label] of [["issuers_independent", "Issuers independent of each other"], ["ratio", "Purchases in line with receipts"], ["coverage", "Receipts cover 6 months"]] as const) {
+  for (const [id, label] of [["issuers_independent", "Issuers independent of the shop and each other"], ["ratio", "Purchases in line with receipts"], ["coverage", "Receipts cover 6 months"]] as const) {
     const c = check(id);
-    rules.push({ id, label, result: c?.result ?? "unknown", reason: c?.reason ?? "Not available." });
+    // A failure that only concerns claims that are NOT counted (e.g. a self-dealing issuer) is shown under "Not counted"; it doesn't count against the shop.
+    if (c?.ignored) rules.push({ id, label, result: "pass", reason: "The issuers that count are independent of the shop and of each other. The ones that aren't are not counted (see above)." });
+    else rules.push({ id, label, result: c?.result ?? "unknown", reason: c?.reason ?? "Not available." });
   }
 
   rules.push(stacking >= STACKING_ALERT

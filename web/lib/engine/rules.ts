@@ -150,6 +150,19 @@ export function netFlow(c: FlowContext): CheckResult {
 const digits = (s: string) => s.replace(/\D/g, "").slice(-10); // last 10 digits of a phone number
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
+const joinAnd = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+export { joinAnd };
+
+/** Which of owner, phone, bank account and address the issuer shares with the shop (only fields present on both sides). */
+export function sharedFields(shop: Party, issuer: Party): string[] {
+  const out: string[] = [];
+  if (norm(shop.owner) && norm(shop.owner) === norm(issuer.owner)) out.push("owner");
+  if (digits(shop.phone) && digits(shop.phone) === digits(issuer.phone)) out.push("phone");
+  if (norm(shop.bankAccount) && norm(shop.bankAccount) === norm(issuer.bankAccount)) out.push("bank account");
+  if (norm(shop.address) && norm(shop.address) === norm(issuer.address)) out.push("address");
+  return out;
+}
+
 /**
  * Check 3: the issuer must not share an owner, phone, bank account or address with the SHOP.
  * A failure says which field matched. If a field is missing on either side it can't be compared: unknown, not pass.
@@ -169,7 +182,7 @@ export function independence(shop: Party | null, issuer: Party | null): CheckRes
   const missing = fields.filter((f) => !f.comparable).map((f) => f.label);
   const numbers = `Compared ${fields.filter((f) => f.comparable).map((f) => f.label).join(", ") || "nothing"} · matched: ${matched.map((f) => f.label).join(", ") || "none"}`;
   if (matched.length) {
-    return { ...base, result: "fail", reason: `Issuer shares ${matched.map((f) => `${f.label} (${f.value})`).join(", ")} with the shop.`, numbers, source };
+    return { ...base, result: "fail", reason: `Shares the shop's ${joinAnd(matched.map((f) => f.label))}, so it isn't independent.`, numbers: `${numbers} (${matched.map((f) => `${f.label}: ${f.value}`).join("; ")})`, source };
   }
   if (missing.length) {
     return { ...base, result: "unknown", reason: `No match on what could be compared, but the ${missing.join(" and ")} could not be compared (missing on file).`, numbers, source };

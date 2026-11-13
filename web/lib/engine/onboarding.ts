@@ -39,6 +39,7 @@ export interface ReviewCheck {
   label: string;
   result: Result;
   reason: string;
+  ignored?: boolean; // a failure that only concerns claims that are not counted anyway: it is shown, but does not block the verdict
 }
 
 export type Verdict = "recommend_approve" | "needs_review" | "recommend_reject";

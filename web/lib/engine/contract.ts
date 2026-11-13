@@ -382,7 +382,7 @@ export async function simulateOtherLenderChecks(shopId: string, count = 2): Prom
     const recent = recentChecks(s, shopId);
     for (let i = 0; i < n; i++) recent.push(s.now - (i + 1) * 3 * DAY);
     s.checks[shopId] = recent;
-    return { result: recent.length, summary: `Lender 2 and Lender 3 also checked ${shopId} (simulated): ${recent.length} check(s) in the last 30 days` };
+    return { result: recent.length, summary: `Navjeevan Finance and Udaan Micro Credit also checked ${shopId} (simulated): ${recent.length} check(s) in the last 30 days` };
   });
 }
 

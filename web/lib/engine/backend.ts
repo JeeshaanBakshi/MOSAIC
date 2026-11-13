@@ -13,7 +13,7 @@ import "server-only";
 import { ACCOUNTS, type RoleId } from "./accounts";
 import { SHOPS, type Shop } from "./data";
 import { getCredentials, markChecked } from "./contract";
-import { netFlow, independence, paymentMatch, parseClaimedAmount, monthlyFlows, type CheckResult, type FeedMonth, type FlowContext, type Party, type PaymentFeed } from "./rules";
+import { netFlow, independence, paymentMatch, parseClaimedAmount, monthlyFlows, sharedFields, joinAnd, type CheckResult, type FeedMonth, type FlowContext, type Party, type PaymentFeed } from "./rules";
 import { sleep } from "./util";
 import { read, mutateDb, type SupplierSays } from "./store";
 import type { ReviewCheck } from "./onboarding";
@@ -229,6 +229,7 @@ export interface IssuerReceipts {
   avgNet: number;
   flow: string; // what the numbers mean, in words
   failedWhy: string | null; // why a failed claim was not counted (the first failed check)
+  failedReason: string | null; // just the reason, e.g. "Shares the shop's phone and bank account, so it isn't independent."
 }
 
 export type ShopVerdict = "looks_genuine" | "needs_review" | "not_enough_evidence";
@@ -263,6 +264,7 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
       row = {
         issuer: e.issuer, issuerName: e.issuerName, kind, credentialIds: [], claimedMonthly: null, overall: e.overall, months,
         failedWhy: null,
+        failedReason: null,
         avgNet: months.reduce((t, m) => t + m.net, 0) / WINDOW.length,
         flow: kind === "PaymentProvider" ? "money in to the shop, as recorded by this payment app" : "what the shop paid this supplier's verified account, per a payment app",
       };
@@ -275,6 +277,7 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
     if (e.overall === "failed" && !row.failedWhy) {
       const f = e.checks.find((c) => c.result === "fail")!;
       row.failedWhy = `${{ 2: "payment match", 3: "independence", 4: "net flow" }[f.check]} failed. ${f.reason}`;
+      row.failedReason = f.reason;
     }
   }
 
@@ -285,7 +288,7 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
 
   // 2) Shop-level checks.
   checks.push(shop
-    ? { id: "on_file", label: "Shop on file", result: "pass", reason: `${shop.name}, ${shop.type.toLowerCase()} in ${shop.address.split(",").slice(-2).join(",").trim()}, trading since ${shop.since}.` }
+    ? { id: "on_file", label: "Shop on file", result: "pass", reason: `${shop.name}: ${shop.type}. ${shop.address}. Trading since ${shop.since}.` }
     : { id: "on_file", label: "Shop on file", result: "unknown", reason: "We have no shop profile or payment records for this shop id." });
 
   if (!providers.length) {
@@ -311,11 +314,13 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
     });
   }
 
-  if (issuers.length < 2) {
-    checks.push({ id: "issuers_independent", label: "Issuers are independent of each other", result: "unknown", reason: "Only one issuer: nothing to compare." });
+  // Every issuer is compared with the SHOP (owner, phone, bank account, address), and the issuers with each other.
+  if (!issuers.length) {
+    checks.push({ id: "issuers_independent", label: "Issuers are independent of the shop and of each other", result: "unknown", reason: "No credentials yet, so nothing to compare." });
   } else {
+    const ids = issuers.map((r) => ({ name: r.issuerName, counted: r.overall !== "failed", who: identityOf(roleByAddress[r.issuer], r.issuer) }));
+    const withShop = ids.map((i) => ({ name: i.name, counted: i.counted, fields: shop && i.who ? sharedFields(shop, i.who) : [] })).filter((i) => i.fields.length);
     const clash: string[] = [];
-    const ids = issuers.map((r) => ({ name: r.issuerName, who: identityOf(roleByAddress[r.issuer], r.issuer) }));
     const dig = (x: string) => x.replace(/\D/g, "").slice(-10);
     for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) {
       const x = ids[a].who, y = ids[b].who;
@@ -323,24 +328,25 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
       if (dig(x.phone) && dig(x.phone) === dig(y.phone)) clash.push(`${ids[a].name} and ${ids[b].name} share a phone number`);
       else if (x.owner.trim().toLowerCase() === y.owner.trim().toLowerCase()) clash.push(`${ids[a].name} and ${ids[b].name} have the same owner`);
     }
-    checks.push(clash.length
-      ? { id: "issuers_independent", label: "Issuers are independent of each other", result: "fail", reason: `${clash.join("; ")}. They could be vouching for each other's story.` }
-      : { id: "issuers_independent", label: "Issuers are independent of each other", result: "pass", reason: `${issuers.length} issuers with different owners and phone numbers.` });
+    const reasons = [...withShop.map((i) => `${i.name} shares the shop's ${joinAnd(i.fields)}, so it isn't independent.`), ...clash.map((c) => `${c}: they could be vouching for each other's story.`)];
+    checks.push(reasons.length
+      ? { id: "issuers_independent", label: "Issuers are independent of the shop and of each other", result: "fail", reason: reasons.join(" "), ignored: !clash.length && withShop.every((i) => !i.counted) }
+      : { id: "issuers_independent", label: "Issuers are independent of the shop and of each other", result: "pass", reason: `${issuers.length} issuer${issuers.length === 1 ? "" : "s"}: none shares an owner, phone, bank account or address with the shop${issuers.length > 1 ? " or with each other" : ""}.` });
   }
 
   const failedClaims = issuers.filter((r) => r.overall === "failed");
   const verified = issuers.filter((r) => r.overall === "verified");
   checks.push(!issuers.length
-    ? { id: "claims_backed", label: "Every claim is backed by receipts", result: "unknown", reason: "No credentials yet." }
+    ? { id: "claims_backed", label: "Every claim passes the checks", result: "unknown", reason: "No credentials yet." }
     : failedClaims.length
-      ? { id: "claims_backed", label: "Every claim is backed by receipts", result: "fail", reason: `Not backed: ${failedClaims.map((r) => `${r.issuerName} (claims ${r.claimedMonthly ? rs(r.claimedMonthly) : "?"}/month, receipts show ${rs(r.avgNet)})`).join("; ")}. That's evidence against the issuer, not the shop.` }
+      ? { id: "claims_backed", label: "Every claim passes the checks", result: "fail", reason: `Not counted: ${failedClaims.map((r) => `${r.issuerName} (${r.failedReason ?? "failed a check"})`).join(" ")} That's evidence against the issuer, not the shop.` }
       : verified.length === issuers.length
-        ? { id: "claims_backed", label: "Every claim is backed by receipts", result: "pass", reason: `All ${issuers.length} issuers' claims match the receipts.` }
-        : { id: "claims_backed", label: "Every claim is backed by receipts", result: "unknown", reason: "Some claims can't be compared with receipts yet." });
+        ? { id: "claims_backed", label: "Every claim passes the checks", result: "pass", reason: `All ${issuers.length} issuers' claims match the receipts.` }
+        : { id: "claims_backed", label: "Every claim passes the checks", result: "unknown", reason: "Some claims can't be compared with receipts yet." });
 
   // 3) The verdict. Claims that failed are ignored (they hurt the ISSUER); the shop is judged on what's left.
   const kinds = new Set(verified.map((r) => r.kind));
-  const blocking = checks.filter((c) => ["coverage", "ratio", "issuers_independent"].includes(c.id) && c.result === "fail");
+  const blocking = checks.filter((c) => ["coverage", "ratio", "issuers_independent"].includes(c.id) && c.result === "fail" && !c.ignored);
   let verdict: ShopVerdict;
   let verdictReason: string;
   if (!verified.length) {
@@ -352,7 +358,7 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
   } else if (verified.length >= 2 && kinds.size >= 2) {
     verdict = "looks_genuine";
     verdictReason = `Backed by ${verified.length} independent issuers (a supplier and a payment provider) whose numbers agree with the receipts.` +
-      (failedClaims.length ? ` The claim from ${failedClaims.map((r) => r.issuerName).join(", ")} is ignored because it isn't backed.` : "");
+      (failedClaims.length ? ` ${failedClaims.length === 1 ? `The claim from ${failedClaims[0].issuerName} is ignored because it did not pass the checks.` : `The claims from ${joinAnd(failedClaims.map((r) => r.issuerName))} are ignored because they did not pass the checks.`}` : "");
   } else {
     verdict = "needs_review";
     verdictReason = "Only one kind of evidence. Ask for a credential from a different kind of issuer (a supplier AND a payment provider).";

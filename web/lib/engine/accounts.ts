@@ -38,8 +38,8 @@ const byAddress: Record<string, string> = Object.fromEntries([
   ["shop-1", "Sharma Store"], // shops have no wallet, but they appear in the activity log when they approve an issuer
   ["shop-2", "Verma Kirana"],
   ["shop-3", "Sunrise Mart"],
-  ["lender-2", "Lender 2"], // the demo's "other lenders" (stacking counter)
-  ["lender-3", "Lender 3"],
+  ["lender-2", "Navjeevan Finance"], // the demo's "other lenders" (stacking counter)
+  ["lender-3", "Udaan Micro Credit"],
 ]);
 
 export function nameOf(address: string): string {
