@@ -30,3 +30,10 @@ __pycache__
 web/.local-data
 .local-data
 .vercel
+.agents/
+.codex/
+.opencode/
+.claude/
+AGENTS.md
+CLAUDE.md
+video/
