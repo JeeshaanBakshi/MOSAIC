@@ -117,7 +117,7 @@ npm run build                    # production build
 npm test                         # all web tests (engine, cloud stand-ins, browser)
 ```
 
-Environment variables are listed in [`web/.env.example`](web/.env.example). Never commit real values. Deploying the app (Vercel + Upstash + Resend): [`web/README.md`](web/README.md#deploy-to-vercel-step-by-step).
+Environment variables are listed in [`web/README.md`](web/README.md#environment-variables-names-only-never-commit-values). Never commit real values. Deploying the app (Vercel + Upstash + Resend): [`web/README.md`](web/README.md#deploy-to-vercel).
 
 ## How to test on the live app
 
@@ -134,7 +134,7 @@ A click-by-click script with what to say is in [`DEMO.md`](DEMO.md).
 ## Tests
 
 - **Contract:** `cargo test`: 34 pass.
-- **Web (TypeScript):** `cd web && npm test`: 202 engine tests (rules 57, onboarding 46, shop review 28, loans 29, demo cases 23, testnet mirror 14, rate limit 5), 31 cloud tests and 128 browser tests, all pass.
+- **Web (TypeScript):** `cd web && npm test`: 208 engine tests (rules 56, onboarding 46, shop review 33, loans 29, demo cases 25, testnet mirror 14, rate limit 5), 31 cloud tests and 135 browser tests, all pass.
 
 ## Verified on testnet
 

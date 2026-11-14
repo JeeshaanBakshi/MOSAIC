@@ -12,7 +12,7 @@ import "server-only";
 
 import { ACCOUNTS, CONTRACT_ADDRESS, accountByAddress, nameOf, type RoleId } from "./accounts";
 import { START_TIME, chainAllowed, patchState, read, restoreState, setNow, transact, type State } from "./store";
-import { ChainError, arg, chainEnabled, findCredential, invoke, publicKeyOf, roleOfPublicKey, type ChainResult } from "../server/chain";
+import { ALREADY_DONE, ChainError, arg, chainEnabled, findCredential, invoke, publicKeyOf, roleOfPublicKey, type ChainResult } from "../server/chain";
 import { ContractError } from "./types";
 import type {
   Config, Credential, CredentialView, Dispute, Issuer, IssuerKind, IssuerRequest, Payout, Status, Tx, VerifyResult,
@@ -87,6 +87,9 @@ async function mirror<T>(
     });
     return { result: result ? result(c, tx.result) : tx.result, hash: c.hash, onchain: true };
   } catch (e) {
+    // The real contract already holds this exact change (for example a dispute that was slashed in an earlier run):
+    // keep the simulated result and label it simulated. Never a fake link.
+    if (e instanceof ChainError && e.contractError && ALREADY_DONE.includes(e.contractError)) return { ...tx, onchain: false };
     restoreState(snap); // the chain said no: undo the simulated change too
     throw e;
   }

@@ -3,7 +3,7 @@
 // recommendation built from verified numbers only (backend.getLoanDecision), then approve or decline (backend.decideLoan).
 // Going beyond the recommendation needs a written note. The evidence (six fraud checks per credential) is shown below,
 // with a button to dispute a false claim.
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Gavel, Search } from "lucide-react";
 import { ACCOUNTS, backend, contract, nameOf, rs, type LoanOutcome, type Payout } from "@/lib/mock";
@@ -55,14 +55,9 @@ export function LenderView() {
 
   const waiting = (loans.data ?? []).filter((l) => l.status === "requested");
   const wanted = params.get("shop"); // the landing page's "Try the demo" opens the lender view on this shop
-  const autoPicked = useRef(false);
-  useEffect(() => {
-    if (autoPicked.current || !wanted || loanId !== null) return;
-    const l = waiting.find((x) => x.shopId === wanted);
-    if (l) { autoPicked.current = true; setLoanId(l.id); setShopId(l.shopId); }
-  }, [wanted, loanId, waiting]);
+  const autoId = wanted ? waiting.find((x) => x.shopId === wanted)?.id ?? null : null;
   const decided = (loans.data ?? []).filter((l) => l.status === "approved" || l.status === "declined").slice(0, 5);
-  const loan = waiting.find((l) => l.id === loanId) ?? null;
+  const loan = waiting.find((l) => l.id === (loanId ?? autoId)) ?? null;
   const checked = !!loan && verified?.shopId === loan.shopId; // paid to see this shop's evidence
   const decision = useQuery(() => (loan && checked ? backend.getLoanDecision(loan.shopId, loan.amountInr, loan.months) : Promise.resolve(null)), [loan?.id, checked]);
   // Only while a loan is selected: once decided it leaves the waiting list, but the old recommendation may still be on screen.

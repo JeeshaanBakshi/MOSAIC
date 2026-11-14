@@ -4,7 +4,6 @@
 // Backend used: getShop, getShopReview, getLoanDecision (estimate), requestLoan, withdrawLoan, listLoans.
 // Contract used: checks_last_30_days.
 import { useState } from "react";
-import Link from "next/link";
 import { backend, contract, nameOf, rs, type ShopVerdict } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
 import { PERSONAS, setRole, useRole } from "@/lib/session";
@@ -12,7 +11,7 @@ import { cad, formatDate } from "@/lib/format";
 
 /** An amount in rupees with its rough Canadian-dollar equivalent. */
 const money = (inr: number) => `${rs(inr)} (about ${cad(inr)})`;
-import { ArrowUpRight, CircleCheck, CircleX } from "lucide-react";
+import { CircleCheck, CircleX } from "lucide-react";
 import { Badge, Button, Field, PageTitle, Panel, Rows, Section, Skeleton, Stat, inputClass } from "@/components/ui";
 import { errorToast } from "@/components/toast";
 import { LoadDemoButton } from "@/components/LoadDemoButton";

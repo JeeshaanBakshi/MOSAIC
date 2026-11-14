@@ -46,6 +46,9 @@ const ERROR_NAMES: Record<number, string> = {
 /** Mirroring is on when the admin key is set (and it hasn't been switched off). */
 export const chainEnabled = () => !!process.env[SECRET_ENV.admin] && process.env.CHAIN_MIRROR !== "off";
 
+/** Contract refusals that just mean "the real contract already has this" (a repeated rehearsal). The demo keeps going, labelled simulated. */
+export const ALREADY_DONE = ["NoStakeLeft", "DisputeAlreadyOpen", "DisputeAlreadyResolved", "DuplicateClaim", "AlreadyApproved"];
+
 export class ChainError extends ApiError {
   constructor(detail: string, readonly contractError?: string) {
     super("NotSentToStellar", `Not sent to Stellar: ${detail}. Nothing was changed.`);

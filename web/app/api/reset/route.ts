@@ -6,6 +6,8 @@ import * as demo from "@/lib/engine/demo";
 import { read, resetEverything, withState } from "@/lib/engine/store";
 import { log } from "@/lib/server/log";
 
+export const maxDuration = 60;
+
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 export async function POST(request: Request) {

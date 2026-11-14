@@ -1,6 +1,5 @@
 // Display helpers. USDC has 7 decimals, so the contract stores whole numbers of "stroops".
 export const USDC_UNIT = 10_000_000;
-export const usdcToStroops = (amount: number) => Math.round(amount * USDC_UNIT);
 
 export function usdc(stroops: number): string {
   const n = stroops / USDC_UNIT;

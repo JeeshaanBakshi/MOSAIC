@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "tests/**", // test scripts use loose types on purpose
+    "screenshots/**",
   ]),
 ]);
 

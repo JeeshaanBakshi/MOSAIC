@@ -346,7 +346,7 @@ impl Mosaic {
         if config.stake_amount > 0 {
             token::TokenClient::new(&env, &config.usdc).transfer(
                 &issuer,
-                &env.current_contract_address(),
+                env.current_contract_address(),
                 &config.stake_amount,
             );
         }
