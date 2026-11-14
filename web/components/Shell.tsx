@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Handshake, Info, Landmark, Menu, ShieldCheck, Store, X, type LucideIcon } from "lucide-react";
 import { useChainMode } from "@/lib/useChainMode";
+import { Wordmark as BrandWordmark } from "@/components/Logo";
 import { PERSONAS, PERSONA_GROUPS, PERSONA_IDS, setRole, useRole, type Persona } from "@/lib/session";
 
 const NAV: { href: string; label: string; Icon: LucideIcon }[] = [
@@ -34,13 +35,13 @@ export function Shell({ children }: { children: ReactNode }) {
   const desktop = useIsDesktop(); // render ONE navigation, never both: two role switchers in the page would confuse screen readers and tests
   return (
     <div className="min-h-dvh lg:pl-64">
-      <p className="border-b border-line bg-pine-soft px-4 py-2 text-center text-xs leading-relaxed text-pine-deep sm:text-sm">
+      <p className="relative z-10 border-b border-line bg-pine-soft px-4 py-2 text-center text-xs leading-relaxed text-pine-deep sm:text-sm">
         <b className="font-medium">Testnet prototype:</b>{" "}
         {chainMode === "live" ? "real Stellar testnet transactions, test USDC, made-up shop data." : "simulated transactions (real ones linked in the README), test USDC, made-up shop data."}
       </p>
       {/* Large screens: fixed rail */}
       {desktop && (
-        <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-line bg-surface lg:flex">
+        <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-line bg-surface lg:flex">
           <Rail onNavigate={() => {}} />
         </aside>
       )}
@@ -53,7 +54,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
-      {open && <div className="fixed inset-0 top-14 z-20 bg-ink/20 lg:hidden" onClick={() => setOpen(false)} aria-hidden />}
+      {open && <div className="fixed inset-0 top-14 z-20 bg-black/50 lg:hidden" onClick={() => setOpen(false)} aria-hidden />}
       {!desktop && open && (
         <aside id="drawer" className="fixed inset-x-0 top-14 z-30 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-line bg-surface lg:hidden">
           <Rail compact onNavigate={() => setOpen(false)} />
@@ -67,15 +68,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
 function Wordmark() {
   return (
-    <Link href="/" className="flex items-center gap-2 text-ink">
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
-        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="#245B49" />
-        <rect x="11" y="1" width="8" height="8" rx="1.5" fill="#245B49" opacity=".55" />
-        <rect x="1" y="11" width="8" height="8" rx="1.5" fill="#245B49" opacity=".3" />
-        <rect x="11" y="11" width="8" height="8" rx="1.5" fill="#245B49" opacity=".12" />
-      </svg>
-      <span className="text-lg font-medium tracking-tight">Mosaic</span>
-    </Link>
+    <Link href="/" className="inline-flex items-center text-ink" aria-label="MOSAIC home"><BrandWordmark /></Link>
   );
 }
 

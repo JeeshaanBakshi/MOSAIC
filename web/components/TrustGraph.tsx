@@ -8,10 +8,10 @@ import { CircleCheck, CircleDashed, CircleX } from "lucide-react";
 import type { Graph } from "@/lib/mock";
 
 const COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  shop: { bg: "#192824", border: "#192824", text: "#FFFFFF" },
-  verified: { bg: "#E3EEE8", border: "#245B49", text: "#1A4637" },
-  failed: { bg: "#F6E6E3", border: "#B94A3C", text: "#B94A3C" },
-  unknown: { bg: "#EAF2ED", border: "#8A9791", text: "#5A6B63" },
+  shop: { bg: "#E6EFE7", border: "#E6EFE7", text: "#0B1410" },
+  verified: { bg: "#19291F", border: "#CFE3D6", text: "#CFE3D6" },
+  failed: { bg: "#2B1814", border: "#E48C7B", text: "#E48C7B" },
+  unknown: { bg: "#15241C", border: "#5C7468", text: "#9FB4A8" },
 };
 const KIND_LABEL: Record<string, string> = { Supplier: "Supplier", PaymentProvider: "Payment provider", shop: "Shop" };
 
@@ -78,7 +78,7 @@ export function TrustGraph({ graph }: { graph: Graph }) {
   return (
     <div className="h-[360px] w-full overflow-hidden rounded-(--radius-panel) border border-line bg-surface sm:h-[420px]">
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.25 }} nodesConnectable={false} proOptions={{ hideAttribution: true }}>
-        <Background color="#D6E3DB" gap={22} size={1} />
+        <Background color="#22362B" gap={22} size={1} />
       </ReactFlow>
     </div>
   );

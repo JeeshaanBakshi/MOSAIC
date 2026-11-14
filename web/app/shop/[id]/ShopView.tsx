@@ -34,7 +34,7 @@ export function ShopView({ id, embedded = false }: { id: string; embedded?: bool
           <div className="flex flex-wrap gap-2 text-sm" aria-label="Shops">
             {["shop-1", "shop-2", "shop-3"].map((s) => (
               <Link key={s} href={`/shop/${s}`} aria-current={s === id ? "page" : undefined}
-                className={`rounded-full px-4 py-2 font-medium ${s === id ? "bg-pine text-white" : "border border-line text-quiet hover:bg-wash hover:text-ink"}`}>{s}</Link>
+                className={`rounded-full px-4 py-2 font-medium ${s === id ? "bg-pine text-paper" : "border border-line text-quiet hover:bg-wash hover:text-ink"}`}>{s}</Link>
             ))}
           </div>
         </>

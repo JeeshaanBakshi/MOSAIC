@@ -3,27 +3,27 @@
 /* One hue family: forest green on warm off-white, plus a muted red for failure only.
    Structure comes from hairlines and spacing, not from shadows or boxes. */
 :root {
-  --paper: #F6FAF7;
-  --foreground: #192824;
-  color-scheme: light;
+  --paper: #0A130E; /* near-black green, from the logo artwork */
+  --foreground: #E6EFE7; /* light sage */
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-paper: var(--paper);
-  --color-surface: #FFFFFF;
-  --color-wash: #EAF2ED;
+  --color-surface: #111C16;
+  --color-wash: #15241C;
   --color-ink: var(--foreground);
-  --color-quiet: #5A6B63; /* muted text: spec #718079 darkened slightly to reach 4.5:1 */
-  --color-faint: #5A6B63;
-  --color-line: #D6E3DB;
-  --color-pine: #245B49; /* primary */
-  --color-accent: #245B49;
-  --color-accent-soft: #E3EEE8;
-  --color-accent-deep: #1A4637;
-  --color-pine-deep: #1A4637;
-  --color-pine-soft: #E3EEE8;
-  --color-clay: #B94A3C;
-  --color-clay-soft: #F6E6E3;
+  --color-quiet: #9FB4A8; /* muted text, 8:1 on the page */
+  --color-faint: #8FA599;
+  --color-line: #22362B;
+  --color-pine: #CFE3D6; /* primary: light sage (on dark, the accent is the light colour) */
+  --color-accent: #CFE3D6;
+  --color-accent-soft: #19291F;
+  --color-accent-deep: #F0F8F2;
+  --color-pine-deep: #F0F8F2;
+  --color-pine-soft: #19291F;
+  --color-clay: #E48C7B;
+  --color-clay-soft: #2B1814;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-heading: var(--font-space), var(--font-inter), system-ui, sans-serif;
 
@@ -45,7 +45,9 @@
 html { background: var(--paper); }
 
 body {
-  background: var(--paper);
+  /* a faint green glow in the corner, like the logo artwork */
+  background: radial-gradient(900px 600px at 100% 100%, #14261D 0%, transparent 65%), radial-gradient(700px 500px at 0% 0%, #0F1B15 0%, transparent 60%), var(--paper);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-inter), system-ui, sans-serif;
   font-size: 16px;
@@ -72,3 +74,60 @@ details > summary::-webkit-details-marker { display: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+
+/* ============================================================
+   DESIGN SYSTEM: "Paper & Dust"
+   Light mint paper, near-black green ink, one forest green. Huge light headlines, an italic serif accent,
+   tiny uppercase labels, hairlines instead of boxes. The existing tokens above stay; these build on them.
+   ============================================================ */
+@theme inline {
+  --font-serif: var(--font-instrument), Georgia, serif;
+  --color-bone: #E6EFE7;        /* the one LIGHT chapter (Built on Stellar), for contrast on a dark page */
+  --color-bone-text: #0B1410;
+  --color-bone-quiet: #4A5F54;
+  --color-bone-line: #C5D6CB;
+}
+
+/* Type scale. Sizes fluid with the screen (clamp), tracking tightened as size grows. */
+.t-display  { font-family: var(--font-heading); font-weight: 300; font-size: clamp(2.5rem, 5.2vw, 5.25rem); line-height: .98; letter-spacing: -0.04em; text-wrap: balance; }
+.t-headline { font-family: var(--font-heading); font-weight: 300; font-size: clamp(2rem, 4.2vw, 4.25rem); line-height: 1.02; letter-spacing: -0.035em; text-wrap: balance; }
+.t-title    { font-family: var(--font-heading); font-weight: 400; font-size: clamp(1.35rem, 2.1vw, 1.9rem); line-height: 1.15; letter-spacing: -0.02em; }
+.t-lead     { font-size: clamp(1.05rem, 1.25vw, 1.25rem); line-height: 1.6; color: var(--color-quiet); max-width: 34rem; }
+.t-label    { font-size: .6875rem; line-height: 1; letter-spacing: .18em; text-transform: uppercase; font-weight: 500; color: var(--color-quiet); }
+.t-serif    { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.02em; } /* one accent phrase per headline */
+.t-num      { font-variant-numeric: tabular-nums; }
+
+/* Buttons: pill shaped, a hairline instead of a shadow */
+.btn { display: inline-flex; min-height: 3.5rem; align-items: center; gap: .75rem; border-radius: 999px; padding: 0 1.75rem; font-size: 1rem; font-weight: 500; transition: background-color .2s, color .2s, border-color .2s; }
+.btn-primary { background: var(--color-pine); color: var(--paper); }
+.btn-primary:hover { background: var(--color-pine-deep); }
+.btn-ghost { border: 1px solid var(--color-line); color: var(--color-ink); background: transparent; }
+.btn-ghost:hover { border-color: var(--color-pine); color: var(--color-pine); }
+
+/* Data tables: hairlines, tiny uppercase headers, tabular numbers. No boxes. */
+.dtable { width: 100%; border-collapse: collapse; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.dtable th { text-align: left; padding: .75rem 1rem .75rem 0; font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; font-weight: 500; color: var(--color-quiet); border-bottom: 1px solid var(--color-ink); }
+.dtable td { padding: 1rem 1rem 1rem 0; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+.dtable tr:hover td { background: color-mix(in srgb, var(--color-pine-soft) 55%, transparent); }
+
+/* A status "stamp": word + icon + hairline outline, never colour alone */
+.stamp { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid currentColor; border-radius: 999px; padding: .25rem .7rem; font-size: .6875rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; }
+.stamp-ok { color: var(--color-pine); } .stamp-bad { color: var(--color-clay); } .stamp-unknown { color: var(--color-quiet); }
+
+/* Scroll cue: a thin line that grows and fades, forever (off for reduced motion) */
+@keyframes scroll-line { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+.scroll-line { display: block; width: 1px; height: 2.5rem; background: var(--color-pine); animation: scroll-line 2.2s cubic-bezier(.7,0,.3,1) infinite; }
+@media (prefers-reduced-motion: reduce) { .scroll-line { animation: none; } }
+
+/* ---------- landing chapters ---------- */
+.t-numeral { font-family: var(--font-heading); font-weight: 200; font-size: clamp(5rem, 13vw, 11rem); line-height: .8; letter-spacing: -0.06em; color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--color-pine) 38%, transparent); }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.fade-up { animation: fade-up .55s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .fade-up { animation: none; } }
+
+/* Route transition: OPACITY ONLY. A transform on this wrapper would make it the containing block of every
+   position: fixed child (the particle canvas), which then stretches to the whole page height. */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fade-in .45s ease-out backwards; }
+@media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }

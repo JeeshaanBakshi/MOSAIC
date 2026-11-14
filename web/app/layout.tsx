@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Instrument_Serif, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Shell } from "@/components/Shell";
@@ -11,6 +11,7 @@ import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const space = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] });
+const instrument = Instrument_Serif({ variable: "--font-instrument", subsets: ["latin"], weight: "400", style: ["normal", "italic"] }); // the italic accent in headlines
 
 export const metadata: Metadata = {
   title: "MOSAIC: trading history as credit history",
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${space.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${space.variable} ${instrument.variable} h-full antialiased`}>
       <body>
         <Suspense fallback={null}><ResetOnLoad /></Suspense>
         <CloudSync />

@@ -1,7 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#FFFFFF"/>
-  <rect x="5" y="5" width="10" height="10" rx="2" fill="#245B49"/>
-  <rect x="17" y="5" width="10" height="10" rx="2" fill="#245B49" opacity=".55"/>
-  <rect x="5" y="17" width="10" height="10" rx="2" fill="#245B49" opacity=".3"/>
-  <rect x="17" y="17" width="10" height="10" rx="2" fill="#245B49" opacity=".12"/>
+  <rect width="32" height="32" rx="7" fill="#0A130E"/>
+  <g transform="translate(16 15.5) scale(0.105) translate(-81 -40.5)">
+    <g fill="#DCE7DF"><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(27 0) rotate(45)"/><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(27 54) rotate(45)"/><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(162 81) rotate(45)"/></g>
+    <rect x="-18" y="-18" width="36" height="36" rx="5" fill="#EEF3EF" transform="translate(135 0) rotate(45)"/>
+    <g fill="#3E4F46"><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(0 27) rotate(45)"/><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(54 27) rotate(45)"/><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(108 27) rotate(45)"/><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(135 54) rotate(45)"/></g>
+    <g fill="#86988D"><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(162 27) rotate(45)"/><rect x="-18" y="-18" width="36" height="36" rx="5" transform="translate(81 54) rotate(45)"/></g>
+    <rect x="-18" y="-18" width="36" height="36" rx="5" fill="#B2C0B7" transform="translate(0 81) rotate(45)"/>
+  </g>
 </svg>

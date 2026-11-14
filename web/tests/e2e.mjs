@@ -158,10 +158,10 @@ ok("approved issuer sees the issue form, no application card", (await page.getBy
 
 console.log("-- the fraud demo: landing -> Sharma, then the Lender page cases");
 await go("/"); await as("admin");
-ok("landing page has 'Try the demo'", await page.getByRole("button", { name: /Try the demo with Sharma Store/ }).isVisible());
-ok("landing: 'Built on Stellar' links the contract and 3 real transactions", (await page.getByRole("heading", { name: "Built on Stellar" }).isVisible()) && (await page.locator('a[href*="stellar.expert/explorer/testnet/tx/"]').count()) === 3 && (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446"]').count()) === 1);
+ok("landing page has 'Explore the demo' and 'Learn more'", (await page.getByRole("button", { name: /Explore the demo/ }).isVisible()) && (await page.getByRole("link", { name: "Learn more" }).isVisible()));
+ok("landing: 'Built on Stellar' (the light chapter) links the contract and 5 real transactions, marked testnet", (await page.getByRole("heading", { name: /Built on Stellar/ }).isVisible()) && (await page.locator('a[href*="stellar.expert/explorer/testnet/tx/"]').count()) === 5 && (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446"]').count()) === 1 && (await page.getByText("Stellar testnet · not production").isVisible()));
 ok("landing: 5 steps in How it works", (await page.locator("#how li").count()) === 5);
-await click("Try the demo with Sharma Store", { wait: 2500 });
+await click("Explore the demo", { wait: 2500 });
 ok("it opens the lender view", page.url().includes("/lender"), page.url());
 ok("...with Sharma Store already selected, ready to check", await page.getByRole("button", { name: /Check the shop/ }).isVisible());
 ok("...acting as the lender", (await page.locator('select[aria-label="You are"]:visible').inputValue()) === "asha");
@@ -274,7 +274,9 @@ await page.screenshot({ path: `${S}/onb-impostor.png`, fullPage: true });
 
 console.log("-- cleaner pages: tools, balances and logs only on Admin");
 await go("/"); 
-ok("home offers the four roles (Explore as)", await page.getByText("Explore as").isVisible());
+ok("home offers the four roles (Explore as)", await page.getByRole("heading", { name: /Explore\s*as/ }).isVisible());
+ok("home ends with the final call to action", (await page.getByText("Make business history").isVisible()) && (await page.getByRole("button", { name: /Explore MOSAIC/ }).isVisible()));
+ok("home: the demo scenarios show live numbers from the rules engine", (await page.getByText("Live from the rules engine.").isVisible()) || (await page.getByText("Loading the live numbers").isVisible()));
 ok("home has no long walkthrough any more", (await page.getByText("Try the whole flow").count()) === 0);
 await go("/my-shop");
 ok("no Reset / Load demo buttons outside Admin", (await page.getByRole("button", { name: "Reset all data" }).count()) === 0 && (await page.getByRole("button", { name: "Load demo" }).count()) === 0);

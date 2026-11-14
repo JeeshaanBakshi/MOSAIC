@@ -89,23 +89,23 @@ export default function AdminPage() {
           <p className="text-sm text-quiet">No issuers yet. Until an application is approved, the contract rejects every credential.</p>
         ) : (
           <div className="relative overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-left text-sm">
-              <thead className="text-quiet">
-                <tr className="border-b border-line">
-                  <th scope="col" className="py-2 pr-4 font-medium">Issuer</th>
-                  <th scope="col" className="pr-4 font-medium">Kind</th>
-                  <th scope="col" className="pr-4 font-medium">Disputes upheld</th>
-                  <th scope="col" className="pr-4 font-medium">Status</th>
+            <table className="dtable min-w-[34rem]">
+              <thead>
+                <tr>
+                  <th scope="col">Issuer</th>
+                  <th scope="col">Kind</th>
+                  <th scope="col">Disputes upheld</th>
+                  <th scope="col">Status</th>
                   <th scope="col"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody>
                 {issuers.data!.map((i) => (
                   <tr key={i.address}>
-                    <td className="py-4 pr-4"><div className="font-medium">{i.name}</div><div className="text-xs text-faint">{short(i.address)}</div></td>
-                    <td className="pr-4">{i.kind === "Supplier" ? "Supplier" : "Payment app"}</td>
-                    <td className="pr-4 tabular-nums">{i.upheldClaims} of 2</td>
-                    <td className="pr-4"><Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge></td>
+                    <td><div className="font-medium">{i.name}</div><div className="text-xs text-faint">{short(i.address)}</div></td>
+                    <td>{i.kind === "Supplier" ? "Supplier" : "Payment app"}</td>
+                    <td className="t-num">{i.upheldClaims} of 2</td>
+                    <td><Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge></td>
                     <td className="text-right">
                       {i.active && <Button variant="secondary" disabled={busy !== null} onClick={() => suspend(i)} title="Prototype only: the contract suspends automatically after 2 upheld disputes">Suspend</Button>}
                     </td>

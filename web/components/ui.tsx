@@ -6,15 +6,13 @@ import { CircleAlert, CircleCheck, CircleDashed, CircleX, Clock3, Info, LoaderCi
 export function Panel({ children, className = "", ...rest }: HTMLAttributes<HTMLDivElement>) {
   return <div className={`rounded-(--radius-panel) border border-line bg-surface p-6 sm:p-6 ${className}`} {...rest}>{children}</div>;
 }
-/** Older name, same thing. */
-export const Card = Panel;
 
 /** Every button has: hover, keyboard focus (global ring), pressed, disabled, and `loading` (spinner, locked, announced). */
 export function Button({
   variant = "primary", className = "", loading = false, disabled, children, ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost"; loading?: boolean }) {
   const styles = {
-    primary: "bg-pine text-white hover:bg-pine-deep active:bg-[#143D30]",
+    primary: "bg-pine text-paper hover:bg-pine-deep active:bg-[#B8D0BF]",
     secondary: "border border-line bg-surface text-ink hover:bg-wash active:bg-pine-soft",
     danger: "border border-clay/40 bg-surface text-clay hover:bg-clay-soft active:bg-clay-soft",
     ghost: "text-quiet hover:bg-wash hover:text-ink active:bg-pine-soft",
@@ -23,7 +21,7 @@ export function Button({
     <button
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-(--radius-control) px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 ${loading ? "cursor-progress" : ""} ${styles} ${className}`}
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 ${loading ? "cursor-progress" : ""} ${styles} ${className}`}
       {...props}
     >
       {loading && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
@@ -34,10 +32,10 @@ export function Button({
 
 type Tone = "ok" | "bad" | "quiet" | "open";
 const TONES: Record<Tone, { cls: string; Icon: LucideIcon }> = {
-  ok: { cls: "bg-pine-soft text-pine", Icon: CircleCheck },
-  bad: { cls: "bg-clay-soft text-clay", Icon: CircleX },
-  quiet: { cls: "bg-wash text-quiet", Icon: CircleDashed },
-  open: { cls: "border border-ink/25 bg-surface text-ink", Icon: Clock3 },
+  ok: { cls: "stamp-ok", Icon: CircleCheck },
+  bad: { cls: "stamp-bad", Icon: CircleX },
+  quiet: { cls: "stamp-unknown", Icon: CircleDashed },
+  open: { cls: "stamp-unknown", Icon: Clock3 },
 };
 const STATE_TONE: Record<string, Tone> = {
   verified: "ok", pass: "ok", Valid: "ok", active: "ok",
@@ -50,7 +48,7 @@ const STATE_TONE: Record<string, Tone> = {
 export function Badge({ state, children }: { state: string; children?: ReactNode }) {
   const { cls, Icon } = TONES[STATE_TONE[state] ?? "quiet"];
   return (
-    <span className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium ${cls}`}>
+    <span className={`stamp whitespace-nowrap ${cls}`}>
       <Icon className="size-3.5 shrink-0" aria-hidden strokeWidth={2} />
       {children ?? state}
     </span>
@@ -73,7 +71,7 @@ export const inputClass =
 export function PageTitle({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <header className="max-w-2xl">
-      <h1 className="text-3xl font-medium leading-tight tracking-tight text-ink sm:text-4xl">{title}</h1>
+      <h1 className="t-headline !text-[clamp(2rem,3.6vw,3.3rem)]">{title}</h1>
       {children && <p className="mt-4 text-base leading-relaxed text-quiet">{children}</p>}
     </header>
   );
