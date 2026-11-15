@@ -177,6 +177,25 @@ export async function suspendIssuer(admin: string, issuer: string): Promise<Tx<n
   });
 }
 
+/**
+ * CASE PENALTY (simulation only, never sent to Stellar): after the admin approves a rejection, the credential is revoked and its
+ * stake is deducted and paid to `to` (the lender who rejected the claim, or the platform). The deployed contract only slashes after
+ * a reported default, so it cannot do this; the Activity log labels it as simulated.
+ */
+export async function applyCasePenalty(admin: string, credentialId: number, to: string): Promise<Tx<{ deducted: number }>> {
+  await sleep(LATENCY_MS);
+  return transact("case_penalty", admin, (s, fx) => {
+    mustBeAdmin(s, admin);
+    const cred = s.credentials[credentialId];
+    if (!cred) throw new ContractError("CredentialNotFound");
+    const deducted = cred.stake;
+    cred.stake = 0;
+    cred.revoked = true;
+    transfer(s, CONTRACT_ADDRESS, to, deducted, fx);
+    return { result: { deducted }, summary: `Case penalty (simulated): credential #${credentialId} revoked, ${usdc(deducted)} stake deducted to ${nameOf(to)}` };
+  });
+}
+
 /** The admin decides a dispute. Upheld = the claim was false: the stake goes to the lender. */
 export async function resolveDispute(admin: string, id: number, upheld: boolean): Promise<Tx<{ slashed: number }>> {
   await sleep(LATENCY_MS);

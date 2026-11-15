@@ -10,6 +10,8 @@ import { usdc, short } from "@/lib/format";
 import { Badge, Button, Notice, PageTitle, Panel, Rows, Section, Skeleton } from "@/components/ui";
 import { Applications } from "@/components/Applications";
 import { ShopReviewPanel } from "@/components/ShopReviewPanel";
+import { EvidenceAdmin } from "@/components/EvidenceAdmin";
+import { CaseFiles } from "@/components/CaseFiles";
 import { TestTools } from "@/components/TestTools";
 import { OnChainPanel } from "@/components/OnChainPanel";
 import { ActivityLog } from "@/components/ActivityLog";
@@ -69,7 +71,7 @@ export default function AdminPage() {
       </PageTitle>
 
       <nav aria-label="On this page" className="-mx-6 flex gap-1 overflow-x-auto border-b border-line px-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0">
-        {[["#applications", "Applications"], ["#issuers", "Issuers"], ["#shops", "Shop checks"], ["#disputes", "Disputes"], ["#tools", "Test tools"], ["#logs", "Logs"]].map(([href, label]) => (
+        {[["#applications", "Applications"], ["#issuers", "Issuers"], ["#shops", "Shop checks"], ["#cases", "Cases"], ["#reliability", "Reliability"], ["#evidence", "Evidence"], ["#disputes", "Disputes"], ["#tools", "Test tools"], ["#logs", "Logs"]].map(([href, label]) => (
           <a key={href} href={href} className="shrink-0 border-b-2 border-transparent px-4 py-4 text-sm font-medium text-quiet hover:border-pine hover:text-ink">{label}</a>
         ))}
       </nav>
@@ -118,6 +120,10 @@ export default function AdminPage() {
       </Section>
 
       <ShopReviewPanel />
+
+      <CaseFiles />
+
+      <EvidenceAdmin />
 
       <Section id="disputes" title="Disputes" aside={<>Stakes held by the contract: {escrow.data === undefined ? <Skeleton className="h-4 w-16" /> : usdc(escrow.data)}</>}>
         {(disputes.data ?? []).length === 0 && <p className="text-sm text-quiet">No disputes yet. Lenders open them from the Lender page.</p>}

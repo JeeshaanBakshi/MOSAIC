@@ -97,7 +97,118 @@ export interface SupplierSays {
   submittedAt: number;
 }
 
+/** One thing that happened to an invoice claim. Never edited or removed: the history is the audit trail. */
+export interface InvoiceEvent {
+  at: number; // app clock (unix seconds)
+  by: string; // who did it (a name)
+  action: "submitted" | "confirmed" | "rejected" | "disputed" | "cancelled" | "credit_note" | "dispute_upheld" | "dispute_dismissed";
+  note?: string;
+}
+
+/**
+ * An INVOICE CLAIM: a supplier says "I sold this shop these goods on this invoice". Off-chain, linked to one of the
+ * supplier's credentials. The shop must answer it (two-sided confirmation). Only the fingerprint (`hash`) could ever
+ * go on-chain; the invoice details themselves never do.
+ */
+export interface InvoiceClaim {
+  id: number;
+  issuer: string; // the supplier's address (who made the claim: always kept)
+  shopId: string;
+  credentialId: number; // the supplier's credential this invoice backs
+  ref: string; // invoice reference, e.g. "INV-GW-1042"
+  amountInr: number;
+  currency: string;
+  invoiceDate: number; // unix seconds
+  category: string; // goods or service category
+  description: string;
+  evidenceRef: string; // where the supporting document lives (e.g. "GST e-invoice IRN ...")
+  hash: string; // sha256 of the claim details
+  createdAt: number;
+  expiresAt: number; // after this, an unanswered claim is "expired"
+  status: "pending" | "confirmed" | "rejected" | "disputed"; // the shop's answer ("expired" is worked out when read)
+  reason?: string; // the shop's reason (rejecting or disputing)
+  cancelled: boolean; // the supplier withdrew the invoice
+  creditNotes: { amount: number; ref: string; at: number }[];
+  resolution?: { upheld: boolean; at: number; note: string }; // the admin's ruling on a dispute (upheld = the shop was right)
+  history: InvoiceEvent[];
+}
+
+/** A payment a payment app saw: shop -> an account. The evidence invoices are matched against. */
+export interface PaymentRecord {
+  id: number;
+  provider: string; // the payment app that recorded it
+  shopId: string; // who paid
+  payeeAccount: string; // who was paid (a bank account)
+  amountInr: number;
+  currency: string;
+  date: number; // unix seconds
+  reference: string; // e.g. "UPI/INV-GW-1042"
+  status: "settled" | "reversed" | "pending";
+  recordedAt: number;
+}
+
+/**
+ * A CASE FILE: a rejection of a supplier's claim that the admin must rule on. Opened automatically when a shop rejects or
+ * disputes an invoice, or when a lender reports wrong information in a claim. The admin reads the PDF, then approves
+ * (the rejection stands: stake deducted, issuer warned, 3 warnings remove it) or dismisses (no penalty).
+ * Off-chain. The stake deduction and removal happen in the website's simulation; the deployed contract is unchanged.
+ */
+export interface CaseFile {
+  id: number;
+  kind: "shop_rejection" | "lender_rejection";
+  credentialId: number;
+  issuer: string; // the supplier whose claim was rejected (always kept)
+  shopId: string;
+  raisedByName: string; // who rejected it (the shop or the lender)
+  raisedBy: string; // their address, or the shop id
+  beneficiary: string; // who receives the deducted stake: the lender who rejected it, else the platform
+  invoiceId?: number; // the invoice claim this case is about, when there is one
+  reason: string;
+  openedAt: number;
+  status: "open" | "approved" | "dismissed";
+  decision?: { at: number; note: string; stakeDeducted: number; warnings: number; removed: boolean };
+}
+
+/**
+ * One MONTHLY BILL STATEMENT a supplier uploads as proof that it supplies a shop. The PDF itself lives in the separate file
+ * store (`fileKey`), never in this record; here we keep the numbers the supplier typed and the file's SHA-256 fingerprint.
+ * The text inside the PDF is not read: the typed numbers are what the checks compare with the payment records.
+ */
+export interface Statement {
+  id: number;
+  issuer: string;
+  shopId: string;
+  month: string; // "2026-05"
+  billedInr: number; // the total the bills for that month add up to
+  billCount: number; // how many bills
+  nameOnBill: string; // the customer name printed on the bills
+  fileName: string;
+  fileSize: number; // bytes
+  fileHash: string; // sha256 of the PDF
+  fileKey: string; // where the PDF is kept (file store)
+  uploadedAt: number;
+  supersededBy?: number; // a corrected upload for the same month replaced this one
+}
+
+/** "Is this business your supplier?" The supplier asks, the shop answers. */
+export interface SupplierLink {
+  status: "pending" | "confirmed" | "rejected";
+  requestedAt: number;
+  answeredAt?: number;
+  reason?: string;
+}
+
 export interface Db {
+  statements: Record<number, Statement>;
+  nextStatementId: number;
+  supplierLinks: Record<string, SupplierLink>; // "issuerAddress|shopId"
+  cases: Record<number, CaseFile>;
+  nextCaseId: number;
+  warnings: Record<string, number>; // issuer address -> approved rejections so far
+  invoices: Record<number, InvoiceClaim>;
+  payments: PaymentRecord[];
+  nextInvoiceId: number;
+  nextPaymentId: number;
   feeds: Record<string, PaymentFeed & { submittedAt: number }>; // "paymentAppAddress|shopId" -> the payment app's records (what the checks use)
   says: Record<string, SupplierSays>; // "supplierAddress|shopId" -> what the supplier typed (display only)
   loans: LoanRequest[]; // newest first
@@ -131,7 +242,7 @@ export interface State {
   version: number; // bumps on every change so every browser knows to re-read
 }
 
-const SCHEMA = 8; // bump when State changes shape, so old saved data is thrown away
+const SCHEMA = 11; // bump when State changes shape, so old saved data is thrown away
 
 /** The fake clock starts on 11 Nov 2026. Fixed, so the demo looks the same every time. */
 export const START_TIME = Date.UTC(2026, 10, 11, 9, 0, 0) / 1000;
@@ -176,9 +287,16 @@ export function freshState(): State {
         time: START_TIME,
       },
     ],
-    db: { feeds: {}, says: {}, loans: [], applications: {}, manualReviews: {}, outbox: [], auditLog: [], sends: {}, nextId: 1 },
+    db: { statements: {}, nextStatementId: 1, supplierLinks: {}, cases: {}, nextCaseId: 1, warnings: {}, invoices: {}, payments: [], nextInvoiceId: 1, nextPaymentId: 1, feeds: {}, says: {}, loans: [], applications: {}, manualReviews: {}, outbox: [], auditLog: [], sends: {}, nextId: 1 },
     version: 0,
   };
+}
+
+/** Open a case file inside a db change (so it is saved together with whatever caused it). Returns the new case id. */
+export function openCaseInDb(db: Db, now: number, c: Omit<CaseFile, "id" | "openedAt" | "status">): number {
+  const id = db.nextCaseId++;
+  db.cases[id] = { ...c, id, openedAt: now, status: "open" };
+  return id;
 }
 
 // ---------- the request context ----------

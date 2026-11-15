@@ -102,6 +102,7 @@ export function OnChainPanel() {
           </ul>
         )}
       </div>
+      <p className="text-sm"><a href="/chain" className="font-medium text-pine underline underline-offset-4">Open the testnet inspector</a> <span className="text-quiet">to see everything the contract holds and every transaction, read live from the chain.</span></p>
       <WalletConnect />
     </Panel>
   );

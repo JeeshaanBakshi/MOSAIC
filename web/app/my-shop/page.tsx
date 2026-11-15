@@ -16,6 +16,8 @@ import { Badge, Button, Field, PageTitle, Panel, Rows, Section, Skeleton, Stat, 
 import { errorToast } from "@/components/toast";
 import { LoadDemoButton } from "@/components/LoadDemoButton";
 import { ShopView } from "@/app/shop/[id]/ShopView";
+import { ShopConfirmations } from "@/components/ShopConfirmations";
+import { SupplierLinks } from "@/components/SupplierLinks";
 import { toast } from "sonner";
 
 export default function MyShopPage() {
@@ -103,6 +105,10 @@ function ShopDashboard({ shopId }: { shopId: string }) {
         </div>
         <Stat label="Lender checks in the last 30 days" value={checks30.data === undefined ? <Skeleton /> : String(checks30.data)} />
       </section>
+
+      <SupplierLinks shopId={shopId} />
+
+      <ShopConfirmations shopId={shopId} />
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
         <Panel className="space-y-6 self-start">

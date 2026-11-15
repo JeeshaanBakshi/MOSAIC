@@ -21,6 +21,7 @@ import { CheckList, type RowLike } from "@/components/CheckList";
 import { errorToast, txToast } from "@/components/toast";
 import { TxRef } from "@/components/TxRef";
 import { OnChainPanel } from "@/components/OnChainPanel";
+import { VerificationReport } from "@/components/VerificationReport";
 import { toast } from "sonner";
 
 const STACKING_ALERT = 3; // 3 or more lender checks in 30 days: the shop may be borrowing from several lenders at once
@@ -103,6 +104,12 @@ export function LenderView() {
     const l = await backend.decideLoan(me, id, approve, approveAmount, note);
     setLoanId(null);
     toast.success(approve ? `Approved ${rs(l.approvedInr ?? 0)} for ${shopName}` : `Declined ${shopName}'s request`);
+  });
+
+  // Reject a claim because of wrong information: opens a case for the admin (who gets a PDF and decides).
+  const flag = (credentialId: number, reason: string) => run(`flag-${credentialId}`, async () => {
+    const id = await backend.flagClaim(me, credentialId, reason);
+    toast.success(`Sent to the admin as case #${id}. If the admin approves it, the supplier is warned and its stake is deducted.`);
   });
 
   const dispute = (credentialId: number) => run(`dispute-${credentialId}`, async () => {
@@ -274,11 +281,14 @@ export function LenderView() {
             <EmptyState title={`No credentials for ${shopName(verified.shopId)}`}>That means unknown, not bad: this shop has no evidence yet. Ask its supplier or payment app to vouch.</EmptyState>
           )}
 
+          <VerificationReport shopId={verified.shopId} />
+
+          <h3 className="text-lg font-medium tracking-tight">The six fraud checks, per credential</h3>
           <div className="space-y-6">
             {items.map((e) => {
               const id = e.view.credential.id;
               const d = (disputes.data ?? []).find((x) => x.credentialId === id);
-              return <CredentialBlock key={id} item={e} dispute={d} busy={busy === `dispute-${id}`} anyBusy={busy !== null} onDispute={() => dispute(id)} />;
+              return <CredentialBlock key={id} item={e} dispute={d} busy={busy === `dispute-${id}`} anyBusy={busy !== null} onDispute={() => dispute(id)} flagBusy={busy === `flag-${id}`} onFlag={(reason) => flag(id, reason)} />;
             })}
           </div>
         </section>
@@ -333,14 +343,18 @@ function CheckGroup({ title, note, rows }: { title: string; note?: string; rows:
   );
 }
 
-function CredentialBlock({ item, dispute, busy, anyBusy, onDispute }: {
+function CredentialBlock({ item, dispute, busy, anyBusy, onDispute, flagBusy, onFlag }: {
   item: EvidenceItem;
   dispute?: { id: number; resolved: boolean; upheld: boolean };
   busy: boolean;
   anyBusy: boolean;
   onDispute: () => void;
+  flagBusy: boolean;
+  onFlag: (reason: string) => void;
 }) {
-  const { view, rows, overall } = item;
+  const [rejecting, setRejecting] = useState(false);
+  const [why, setWhy] = useState("");
+  const { view, rows, overall, block } = item;
   const c = view.credential;
   const shown = view.status === "Valid" ? overall : view.status;
   const passedN = rows.filter((r) => r.result === "pass").length;
@@ -369,6 +383,23 @@ function CredentialBlock({ item, dispute, busy, anyBusy, onDispute }: {
             </Button>
           )}
         </div>
+      </div>
+      {block && <div className="mt-4"><Notice tone="warn"><b className="font-medium">{block.result === "fail" ? "Not counted: " : "Held back: "}</b>{block.reason}</Notice></div>}
+      <div className="mt-4 space-y-3">
+        {!rejecting ? (
+          <Button variant="secondary" disabled={anyBusy} onClick={() => setRejecting(true)}>Reject this claim (wrong information)</Button>
+        ) : (
+          <div className="space-y-3 rounded-(--radius-control) bg-wash p-4">
+            <label className="block text-sm font-medium">What is wrong with this claim?
+              <textarea className={`${inputClass} mt-2`} rows={2} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="For example, the amount does not match the shop's real purchases." />
+            </label>
+            <p className="text-xs text-quiet">The admin gets a case file (a PDF) and decides. If approved, the supplier gets a warning, its stake is deducted and paid to you, and after 3 warnings it is removed from the system.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="danger" disabled={anyBusy || why.trim().length < 3} loading={flagBusy} onClick={() => { onFlag(why); setRejecting(false); setWhy(""); }}>Send to the admin</Button>
+              <Button variant="ghost" onClick={() => { setRejecting(false); setWhy(""); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
       </div>
       <details className="group mt-6 border-t border-line pt-4" open={anyFail}>
         <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">

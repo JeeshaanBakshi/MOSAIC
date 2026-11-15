@@ -256,6 +256,114 @@ await page.screenshot({ path: `${S}/onb-shopcheck.png`, fullPage: true });
 await shops.getByRole("tab", { name: "Verma Kirana" }).click(); await page.waitForTimeout(1500);
 ok("Verma Kirana: not enough evidence (Unknown, not bad)", await shops.getByText("Not enough evidence, which is not bad").isVisible());
 
+{
+console.log("-- evidence: the lender's verification report (three demo scenarios)");
+await go("/lender?shop=shop-1"); await as("asha"); await page.waitForTimeout(800);
+await click("Check the shop", { wait: 3000 });
+const rep = page.locator('[data-report="shop-1"]');
+await rep.waitFor({ timeout: 15000 });
+const inv = (ref) => rep.locator(`[data-invoice="${ref}"]`);
+const lc = async (l) => (await l.innerText()).toLowerCase(); // the status stamps are drawn in capitals
+const a = await lc(inv("INV-GW-1042"));
+ok("A genuine: confirmed by both parties, fully matched, strong supporting evidence", a.includes("confirmed by both parties") && a.includes("fully matched") && a.includes("strong supporting evidence"), a.slice(0, 120).replace(/\s+/g, " "));
+const bq = await lc(inv("INV-QS-0731"));
+ok("B false claim: rejected by the business, flagged, with the shop's reason", bq.includes("rejected by business") && bq.includes("flagged") && bq.includes("never ordered"));
+const cq = await lc(inv("INV-GW-1051"));
+ok("C inflated: partially matched, 33.3%, Rs 30,000 outstanding, needs review", cq.includes("partially matched") && cq.includes("33.3%") && cq.includes("₹30,000 outstanding") && cq.includes("needs review"), cq.slice(0, 160).replace(/\s+/g, " "));
+ok("report says what is on Stellar and what is not", (await rep.innerText()).includes("Not on Stellar"));
+ok("evidence freshness is shown", (await lc(rep)).includes("recent"));
+await inv("INV-GW-1051").locator("summary", { hasText: "Why it was judged" }).click();
+ok("each line says what was found and why it matters", (await inv("INV-GW-1051").innerText()).includes("Why it matters"));
+await page.screenshot({ path: `${S}/onb-report.png`, fullPage: true });
+
+console.log("-- evidence: the shop answers (two-sided confirmation)");
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
+ok("Sharma sees one pending confirmation", await page.getByText("Pending transaction confirmations (1)").isVisible());
+const mine = page.locator('[data-invoice="INV-GW-1051"]');
+await mine.getByRole("button", { name: "Dispute", exact: true }).click(); await page.waitForTimeout(300);
+await page.getByPlaceholder(/never ordered this/).fill("We only received half of the goods.");
+await click("Dispute this transaction", { wait: 1800 });
+ok("the dispute is accepted", (await toast()).includes("Disputed"), (await toast()).slice(0, 60));
+ok("nothing is left pending", await page.getByText("Pending transaction confirmations (0)").isVisible());
+const rpcErr = async (fn, args) => (await (await fetch(BASE + "/api/rpc", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fn, args }) })).json());
+const wrong = await rpcErr("backend.confirmInvoice", ["shop-2", 3]);
+ok("another business cannot answer Sharma's invoice (Forbidden)", wrong.ok === false && wrong.error.code === "Forbidden", JSON.stringify(wrong.error));
+const again = await rpcErr("backend.confirmInvoice", ["shop-1", 3]);
+ok("an answered claim cannot be answered again (AlreadyAnswered)", again.ok === false && again.error.code === "AlreadyAnswered", JSON.stringify(again.error));
+await as("mehta"); await page.waitForTimeout(800);
+ok("Verma Kirana has nothing to confirm", await page.getByText("No supplier has submitted an invoice about your shop yet.").isVisible());
+
+console.log("-- evidence: the admin rules, issuer reliability moves");
+await go("/admin"); await as("admin"); await page.waitForTimeout(1500);
+const ev = page.locator("#evidence");
+ok("admin sees the disputed and the rejected invoice", (await ev.innerText()).includes("INV-GW-1051") && (await ev.innerText()).includes("INV-QS-0731"));
+const cs = page.locator("#cases");
+ok("both rejections opened a case for the admin (the shop's rejection and its dispute)", (await cs.innerText()).includes("Case 1") && (await cs.innerText()).includes("Case 2") && (await cs.innerText()).includes("Rejection cases (2 open)"));
+const pdfRes = await fetch(BASE + "/api/case/2/pdf");
+const pdfBytes = Buffer.from(await pdfRes.arrayBuffer());
+ok("the admin can download the case file as a real PDF", pdfRes.status === 200 && pdfRes.headers.get("content-type") === "application/pdf" && pdfBytes.subarray(0, 5).toString() === "%PDF-" && pdfBytes.toString("latin1").includes("MOSAIC case file #2"), `${pdfBytes.length} bytes`);
+ok("a case that does not exist has no PDF (404)", (await fetch(BASE + "/api/case/99/pdf")).status === 404);
+ok("the case says what approving would do", (await cs.locator('[data-case="2"]').innerText()).includes("stake is deducted") && (await cs.locator('[data-case="2"]').innerText()).includes("warning 1 of 3"));
+await cs.locator('[data-case="2"]').getByPlaceholder(/what did you check/).fill("Delivery note shows half the goods.");
+await cs.locator('[data-case="2"]').getByRole("button", { name: /Approve: deduct stake and warn/ }).click(); await page.waitForTimeout(2000);
+ok("approving saves the ruling, deducts the stake and warns the supplier", (await toast()).includes("Approved") && (await toast()).includes("Warning 1 of 3"), (await toast()).slice(0, 90));
+ok("the case now shows the ruling and the PDF link", (await cs.locator('[data-case="2"]').innerText()).includes("Ruling on") && (await cs.locator('[data-case="2"]').innerText()).includes("30 USDC deducted"));
+ok("Gupta Wholesale is now 'Under review' with the reason", await page.locator("#reliability").locator("tr", { hasText: "Gupta Wholesale" }).getByText("Under review").isVisible());
+ok("a new issuer is 'Limited history', never 'Established'", await page.locator("#reliability").locator("tr", { hasText: "PayLink" }).getByText("Limited history").isVisible());
+
+console.log("-- a lender rejects a claim: it becomes another case");
+await go("/lender?shop=shop-1"); await as("asha"); await page.waitForTimeout(800);
+await click("Check the shop", { wait: 3000 });
+await page.getByRole("button", { name: "Reject this claim (wrong information)" }).last().click(); await page.waitForTimeout(300);
+await page.getByPlaceholder(/does not match the shop/).fill("The supplier shares the shop owner's phone number.");
+await click("Send to the admin", { wait: 1800 });
+ok("the lender's rejection is sent to the admin as a case", (await toast()).includes("Sent to the admin as case #3"), (await toast()).slice(0, 80));
+await go("/admin"); await as("admin"); await page.waitForTimeout(1500);
+ok("the admin sees it, with the lender named and the stake going to the lender", (await page.locator('[data-case="3"]').innerText()).includes("Saathi Microfinance") && (await page.locator('[data-case="3"]').innerText()).toLowerCase().includes("open"));
+
+console.log("-- supplier proof: monthly bills and 'is this really your supplier?'");
+await go("/lender?shop=shop-1"); await as("asha"); await page.waitForTimeout(800);
+await click("Check the shop", { wait: 3000 });
+const gp = await page.locator('[data-proof="Gupta Wholesale"]').first().innerText();
+ok("the lender sees Gupta's supplier proof: six monthly bills, all matching the payments", gp.includes("6 of 7 checks passed") || gp.includes("7 of 7 checks passed"), gp.slice(0, 90).replace(/\s+/g, " "));
+const qp = (await page.locator('[data-proof="QuickSupply"]').first().innerText()).toLowerCase();
+ok("QuickSupply's proof is flagged: its Rs 1,50,000 bills are not backed by the money that stayed", qp.includes("not backed") && qp.includes("not uploaded"));
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
+ok("Sharma Store is asked 'Is this business your supplier?' (QuickSupply waiting)", await page.getByText("Is this business your supplier? (1 waiting)").isVisible());
+await page.locator('[data-supplier="QuickSupply"]').getByRole("button", { name: "Yes, they supply us" }).click(); await page.waitForTimeout(1800);
+ok("the shop confirms its supplier", (await toast()).includes("Confirmed"), (await toast()).slice(0, 70));
+await go("/issuer"); await as("gupta"); await page.waitForTimeout(1500);
+ok("the supplier sees 'Prove you supply this shop' with six months", await page.getByText("Prove you supply this shop").isVisible() && (await page.locator("[data-month]").count()) === 6);
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mosaic-pdf-"));
+const goodPdf = path.join(tmp, "oct.pdf"); fs.writeFileSync(goodPdf, "%PDF-1.4\n" + "% a small test bill for the browser test\n".repeat(12) + "%%EOF\n");
+const fakePdf = path.join(tmp, "fake.pdf"); fs.writeFileSync(fakePdf, "this is only text pretending to be a pdf. ".repeat(20));
+const bigPdf = path.join(tmp, "big.pdf"); fs.writeFileSync(bigPdf, Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(450_000, 97), Buffer.from("\n%%EOF\n")]));
+await page.locator('select').filter({ hasText: "Oct 2026" }).first().selectOption("2026-10");
+await page.getByPlaceholder("45500").fill("46000"); await page.getByPlaceholder("4", { exact: true }).fill("3");
+await page.locator('input[type="file"]').setInputFiles(bigPdf); await page.waitForTimeout(300);
+ok("a file over 400 KB is refused before upload, and the button stays off", (await page.getByText(/The limit is 400 KB/).count()) > 0 && await page.getByRole("button", { name: /Upload the Oct 2026 bill/ }).isDisabled());
+await page.locator('input[type="file"]').setInputFiles(fakePdf); await page.waitForTimeout(200);
+await click("Upload the Oct 2026 bill", { wait: 1800 });
+ok("a file that only looks like a PDF is refused by the server", (await toast()).includes("does not look like a PDF"), (await toast()).slice(0, 80));
+await page.locator('input[type="file"]').setInputFiles(goodPdf); await page.waitForTimeout(200);
+await click("Upload the Oct 2026 bill", { wait: 2000 });
+ok("a real PDF is accepted and replaces the October bill", (await toast()).includes("bill uploaded"), (await toast()).slice(0, 80));
+const octRow = await page.locator('[data-month="2026-10"]').innerText();
+ok("the table shows the corrected October bill: 3 bills, Rs 46,000", octRow.includes("3 bills") && octRow.includes("₹46,000"), octRow.replace(/\s+/g, " ").slice(0, 100));
+const stRes = await fetch(BASE + "/api/statement/1"); const stBytes = Buffer.from(await stRes.arrayBuffer());
+ok("a stored bill opens as a PDF", stRes.status === 200 && stRes.headers.get("content-type") === "application/pdf" && stBytes.subarray(0, 5).toString() === "%PDF-", `${stBytes.length} bytes`);
+ok("a bill that does not exist is a 404", (await fetch(BASE + "/api/statement/9999")).status === 404);
+const noFile = await fetch(BASE + "/api/statement", { method: "POST", body: new FormData() });
+ok("an upload with no file is refused (400)", noFile.status === 400);
+
+console.log("-- evidence: the issuer and payment-app screens");
+await go("/issuer"); await as("gupta"); await page.waitForTimeout(1200);
+ok("supplier sees its invoices and track record", await page.getByText("Invoices for the shop to confirm").isVisible() && await page.getByText("Your track record").isVisible());
+ok("the supplier sees the shop's reason on a disputed invoice", await page.getByText(/only received half of the goods/).first().isVisible());
+await as("paylink"); await page.waitForTimeout(1200);
+ok("payment app sees its payment records", await page.getByText("Payment records (the evidence invoices are matched against)").isVisible() && (await page.getByText("UPI/INV-GW-1051").count()) > 0);
+}
+
 console.log("-- someone using Gupta Wholesale's GST number with their own details");
 await go("/?reset=1"); await page.waitForTimeout(1500);
 await go("/issuer"); await as("gupta");
@@ -382,7 +490,15 @@ await m.goto(BASE + "/my-shop"); await m.waitForTimeout(800); await m.screenshot
 ok("no horizontal scroll on phones", !(await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2)));
 await m.screenshot({ path: `${S}/onb-mobile.png`, fullPage: true });
 
+console.log("-- the testnet inspector page");
+await go("/chain"); await page.waitForTimeout(500);
+ok("the inspector page opens and is in the menu", await page.getByRole("heading", { name: "Stellar testnet inspector" }).isVisible() && await page.getByRole("link", { name: "Testnet" }).first().isVisible());
+await page.waitForTimeout(4000);
+const chainText = await page.locator("main, body").first().innerText();
+ok("it shows the real contract id, or says plainly it could not read the chain", chainText.includes("CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG") || chainText.includes("Could not read the chain"));
+
 console.log(`\n${pass} passed, ${fail} failed`);
-const real = errors.filter((e) => !e.includes("401")); // the 401 is the deliberately wrong reset password
+let allow400 = 1; // the ONE 400 is the deliberately fake PDF the server refuses (any other 400 is a real error)
+const real = errors.filter((e) => !e.includes("401") && !(e.includes("status of 400") && allow400-- > 0)); // the 401 is the deliberately wrong reset password
 console.log(real.length ? "BROWSER ERRORS:\n" + [...new Set(real)].join("\n") : "no unexpected browser errors");
 await browser.close(); process.exit(fail ? 1 : 0);

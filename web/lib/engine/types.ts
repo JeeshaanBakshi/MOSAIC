@@ -147,7 +147,7 @@ export class ContractError extends Error {
 
 // ---------- errors from the BACKEND (the FastAPI rules engine), not the contract ----------
 
-export type ApiErrorCode = "InvalidInput" | "NoApplication" | "InvalidOtp" | "OtpExpired" | "TooManyAttempts" | "Forbidden" | "NotFound" | "RateLimited" | "NotSentToStellar";
+export type ApiErrorCode = "InvalidInput" | "NoApplication" | "InvalidOtp" | "OtpExpired" | "TooManyAttempts" | "Forbidden" | "NotFound" | "RateLimited" | "NotSentToStellar" | "AlreadyAnswered";
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;

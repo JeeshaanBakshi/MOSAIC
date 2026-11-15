@@ -6,7 +6,9 @@ import "server-only";
 
 import { ACCOUNTS } from "./accounts";
 import { addIssuer, getCredentials, issueCredential, openDispute, requestIssuer, resolveDispute } from "./contract";
-import { submitPaymentFeed, syncChecks, verifiedAccountOf } from "./backend";
+import { confirmInvoice, confirmSupplierLink, rejectInvoice, requestSupplierLink, submitInvoice, submitPaymentFeed, submitPaymentRecord, submitStatement, syncChecks, verifiedAccountOf } from "./backend";
+import { MONTH_LABEL } from "./evidence";
+import { sampleBillPdf } from "../server/pdf";
 import type { FeedMonth } from "./rules";
 import { markRequested, seedVerifiedApplication } from "./onboarding";
 import { requestLoan } from "./loans";
@@ -36,6 +38,50 @@ function sharmaFeed(): FeedMonth[] {
       },
     };
   });
+}
+
+/**
+ * Three deterministic invoice scenarios for Sharma Store (shop-1). The same rules that run for real users judge them;
+ * nothing is bent to make them pass.
+ *   A  Gupta Wholesale INV-GW-1042  Rs 45,000, PayLink saw Rs 45,000, the shop CONFIRMED   -> strong evidence
+ *   B  QuickSupply     INV-QS-0731  Rs 45,000, the shop REJECTED it (it never ordered)     -> flagged
+ *   C  Gupta Wholesale INV-GW-1051  Rs 45,000, PayLink saw only Rs 15,000, shop undecided  -> partly matched, review
+ */
+async function loadInvoiceScenarios() {
+  const { gupta, paylink, quick } = ACCOUNTS;
+  const cred = async (issuer: string) => (await getCredentials("shop-1")).find((v) => v.credential.issuer === issuer)!.credential.id;
+  const guptaCred = await cred(gupta.address), quickCred = await cred(quick.address);
+  const guptaAccount = verifiedAccountOf("gupta")!;
+
+  const a = await submitInvoice(gupta.address, "shop-1", guptaCred, { ref: "INV-GW-1042", amountInr: 45000, date: "2026-10-28", category: "Groceries and staples", description: "Monthly stock: rice, atta, oil, pulses", evidenceRef: "Sample GST e-invoice IRN (demo data)", validDays: 90 });
+  await submitPaymentRecord(paylink.address, "shop-1", { payeeAccount: guptaAccount, amountInr: 45000, date: "2026-10-30", reference: "UPI/INV-GW-1042" });
+  await confirmInvoice("shop-1", a);
+
+  const b = await submitInvoice(quick.address, "shop-1", quickCred, { ref: "INV-QS-0731", amountInr: 45000, date: "2026-10-20", category: "Packaged goods", description: "Bulk packaged goods", evidenceRef: "Sample invoice scan (demo data)", validDays: 90 });
+  await rejectInvoice("shop-1", b, "We never ordered this and no goods arrived.");
+
+  await submitInvoice(gupta.address, "shop-1", guptaCred, { ref: "INV-GW-1051", amountInr: 45000, date: "2026-11-02", category: "Groceries and staples", description: "Festival season stock", evidenceRef: "Sample GST e-invoice IRN (demo data)", validDays: 90 });
+  await submitPaymentRecord(paylink.address, "shop-1", { payeeAccount: guptaAccount, amountInr: 15000, date: "2026-11-03", reference: "UPI/INV-GW-1051" });
+}
+
+/**
+ * Supplier proof for Sharma Store (shop-1), all made-up sample bills:
+ *   Gupta Wholesale  six monthly bills that match what the shop paid, and the shop CONFIRMED it is its supplier -> verified supplier
+ *   QuickSupply      three monthly bills of Rs 1,50,000, but almost all of it came straight back, and the shop has not answered -> flagged
+ *   Anand Traders    nothing uploaded -> not verified yet
+ */
+async function loadSupplierProof() {
+  const { gupta, quick } = ACCOUNTS;
+  const months = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
+  const upload = async (a: typeof gupta, name: string, month: string, total: number, bills: number) => {
+    const pdf = sampleBillPdf({ supplier: name, customer: "Sharma Store", monthLabel: MONTH_LABEL[month], total, bills });
+    await submitStatement(a.address, "shop-1", { month, billedInr: total, billCount: bills, nameOnBill: "Sharma Store", fileName: `${name.toLowerCase().replace(/\s+/g, "-")}-${month}.pdf` }, pdf);
+  };
+  await requestSupplierLink(gupta.address, "shop-1");
+  await confirmSupplierLink("shop-1", gupta.address);
+  for (const m of months) await upload(gupta, "Gupta Wholesale", m, 45_500, 4);
+  await requestSupplierLink(quick.address, "shop-1");
+  for (const m of months.slice(0, 3)) await upload(quick, "QuickSupply", m, 150_000, 6);
 }
 
 /**
@@ -86,8 +132,13 @@ async function loadDemoSimulated() {
   const dispute = await openDispute("lender-2", fakeCred);
   await resolveDispute(admin.address, dispute.result, true);
 
+  // 3b. Three invoice scenarios on Sharma Store, so the lender's report shows what the new evidence layer does.
+  //     Everything here is made-up sample data. A = genuine, B = a supplier's claim the shop denies, C = an inflated invoice.
+  await loadInvoiceScenarios();
+  await loadSupplierProof();
+
   // 4. Both shops ask for a loan, so the lender has something to decide.
   await requestLoan("shop-3", 100000, 6, "Opening stock for a new shop");
   await requestLoan("shop-1", 20000, 6, "Extra stock for the festival season");
-  logEvent("info", "demo_loaded", "Demo loaded: 4 issuers approved, 5 credentials issued, Sharma Store (honest) and Sunrise Mart (vouched only by QuickSupply) asked for loans.");
+  logEvent("info", "demo_loaded", "Demo loaded: 4 issuers approved, 5 credentials issued, 3 invoice scenarios, Sharma Store (honest) and Sunrise Mart (vouched only by QuickSupply) asked for loans.");
 }

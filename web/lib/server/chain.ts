@@ -171,6 +171,26 @@ export async function read<T = unknown>(method: string, args: xdr.ScVal[]): Prom
   }
 }
 
+/**
+ * A free read that needs NO secret key: any funded public account can be the "source" of a simulation.
+ * This is what the public Testnet inspector uses, so it works even on a deployment with no keys. It can read any contract.
+ */
+export const READ_ACCOUNT = process.env.STELLAR_READ_ACCOUNT ?? "GBAYZUXD6APJWPFJ4V35PPUYIUXUMM344SLSRDXXOPTI6K7KU5NBUGLP"; // the public admin address (deployments/testnet.json)
+export async function readPublic<T = unknown>(contractId: string, method: string, args: xdr.ScVal[]): Promise<T> {
+  const s = server();
+  const account = await withRetry(() => s.getAccount(READ_ACCOUNT));
+  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: PASSPHRASE })
+    .addOperation(new Contract(contractId).call(method, ...args)).setTimeout(30).build();
+  const sim = await withRetry(() => s.simulateTransaction(tx));
+  if (rpc.Api.isSimulationError(sim)) throw new Error(sim.error);
+  const ret = (sim as rpc.Api.SimulateTransactionSuccessResponse).result?.retval;
+  return (ret ? scValToNative(ret) : null) as T;
+}
+
+/** The RPC server and a few helpers the Testnet inspector needs. */
+export const rpcServer = server;
+export { scValToNative, xdr };
+
 interface ChainCredential { id: bigint; issuer: string; claim_type: string; passed: boolean; revoked: boolean; stake: bigint; shop_id: string }
 
 /** The on-chain credential matching a website credential, found by who signed it and what kind it is (the two number them differently). */

@@ -12,6 +12,7 @@ import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError,
 import { Hash } from "@/components/Hash";
 import { ActivityLog } from "@/components/ActivityLog";
 import { ApplyToJoin } from "@/components/ApplyToJoin";
+import { IssuerEvidence } from "@/components/IssuerEvidence";
 import { errorToast, txToast } from "@/components/toast";
 
 const CLAIM_TYPES = [
@@ -282,6 +283,8 @@ export default function IssuerPage() {
           </div>
         </Section>
       </div>
+
+      {isIssuerRole && registry.data && <IssuerEvidence me={me} kind={registry.data.kind} credentials={mine.data ?? []} />}
 
       {acct && <ActivityLog caller={acct.name} title="Your transactions" />}
     </div>

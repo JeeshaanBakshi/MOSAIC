@@ -16,6 +16,8 @@ import { getCredentials, markChecked } from "./contract";
 import { netFlow, independence, paymentMatch, parseClaimedAmount, monthlyFlows, sharedFields, joinAnd, type CheckResult, type FeedMonth, type FlowContext, type Party, type PaymentFeed } from "./rules";
 import { sleep } from "./util";
 import { read, mutateDb, type SupplierSays } from "./store";
+import { invoiceBlock, type InvoiceBlock } from "./invoiceState";
+import { EVIDENCE_MONTHS } from "./evidence";
 import type { ReviewCheck } from "./onboarding";
 import { rs } from "./rules";
 import { ApiError, ContractError, type IssuerKind, type Status } from "./types";
@@ -45,7 +47,7 @@ export function verifiedAccountOf(role: RoleId): string | null {
   return ISSUER_IDENTITY[role]?.bankAccount ?? null;
 }
 
-const WINDOW = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]; // the 6 months of evidence
+const WINDOW: readonly string[] = EVIDENCE_MONTHS; // the 6 months of evidence
 
 const roleOf = (address: string): RoleId | undefined => (Object.values(ACCOUNTS).find((a) => a.address === address)?.id);
 
@@ -54,7 +56,7 @@ const roleOf = (address: string): RoleId | undefined => (Object.values(ACCOUNTS)
  *  - A payment app's own claim: its own records for this shop.
  *  - A supplier's claim: the records of a DIFFERENT, approved payment app. Never the supplier's own numbers.
  */
-function feedFor(issuer: string, shopId: string, kind: IssuerKind): { feed: PaymentFeed | null; from: string } {
+export function feedFor(issuer: string, shopId: string, kind: IssuerKind): { feed: PaymentFeed | null; from: string } {
   const feeds = read().db.feeds;
   if (kind === "PaymentProvider") {
     const own = feeds[`${issuer}|${shopId}`];
@@ -147,6 +149,8 @@ export interface Evaluated {
   supplierSays: { avgPurchases: number; sentBackPerMonth: number } | null;
   verifiedAccount: string | null; // the receiving account payments were matched against
   dataFrom: string; // which payment app's records the checks used ("" if none)
+  /** The shop's answer to an invoice behind this credential, when it stops the credential counting (rejected or disputed). */
+  invoiceBlock: InvoiceBlock | null;
 }
 
 export interface Graph {
@@ -178,14 +182,15 @@ export async function getChecks(shopId: string): Promise<Evaluated[]> {
     const ctx: FlowContext = { claimed, kind, account, feed: shop ? feed : null, feedFrom: from };
 
     const checks = [paymentMatch(ctx), independence(shop ?? null, identityOf(role, c.issuer)), netFlow(ctx)];
-    const overall = checks.some((x) => x.result === "fail") ? "failed"
-      : status === "Valid" && checks.every((x) => x.result === "pass") ? "verified" : "unknown";
+    const block = invoiceBlock(c.id); // the SHOP's word on an invoice: a rejection fails the credential, an open dispute holds it back
+    const overall = checks.some((x) => x.result === "fail") || block?.result === "fail" ? "failed"
+      : status === "Valid" && checks.every((x) => x.result === "pass") && !block ? "verified" : "unknown";
     const says = read().db.says[`${c.issuer}|${shopId}`];
     return {
       credentialId: c.id, issuer: c.issuer, issuerName, issuerKind: role ? kind : null,
       claimType: c.claimType, summary: c.summary, claimedMonthlyInr: claimed, onchainStatus: status, checks, overall,
       supplierSays: says ? { avgPurchases: says.months.reduce((t, n) => t + n, 0) / says.months.length, sentBackPerMonth: says.sentBackPerMonth } : null,
-      verifiedAccount: account, dataFrom: feed ? from : "",
+      verifiedAccount: account, dataFrom: feed ? from : "", invoiceBlock: block,
     };
   });
 }
@@ -275,9 +280,9 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
     const rank = { failed: 2, unknown: 1, verified: 0 } as const;
     if (rank[e.overall] > rank[row.overall]) row.overall = e.overall;
     if (e.overall === "failed" && !row.failedWhy) {
-      const f = e.checks.find((c) => c.result === "fail")!;
-      row.failedWhy = `${{ 2: "payment match", 3: "independence", 4: "net flow" }[f.check]} failed. ${f.reason}`;
-      row.failedReason = f.reason;
+      const f = e.checks.find((c) => c.result === "fail");
+      row.failedWhy = f ? `${{ 2: "payment match", 3: "independence", 4: "net flow" }[f.check]} failed. ${f.reason}` : `business confirmation failed. ${e.invoiceBlock?.reason ?? ""}`;
+      row.failedReason = f ? f.reason : e.invoiceBlock?.reason ?? null;
     }
   }
 
@@ -370,3 +375,6 @@ export async function getShopReview(shopId: string): Promise<ShopReview> {
 // and are part of the same fake backend:
 export * from "./onboarding";
 export * from "./loans";
+export * from "./invoices";
+export * from "./cases";
+export * from "./statements";

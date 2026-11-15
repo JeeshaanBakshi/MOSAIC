@@ -1,6 +1,7 @@
 "use client";
 // The trust graph: the shop in the centre, each issuer around it.
 // green = verified, grey = unknown, red = failed a check.
+import { useMemo } from "react";
 import type React from "react";
 import { ReactFlow, Background, Handle, Position, type Node, type Edge, type NodeProps, MarkerType } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -34,6 +35,23 @@ function facing(dx: number, dy: number): Position {
 }
 
 export function TrustGraph({ graph }: { graph: Graph }) {
+  // The page re-reads the graph whenever anything changes, and each read is a NEW object. React Flow hides a node until it
+  // has measured it, and re-measuring on every new object left the whole graph hidden (a blank box). So: rebuild the nodes
+  // and edges only when the graph's CONTENT changes, and give every node a fixed size so it never needs measuring.
+  const signature = JSON.stringify(graph);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { nodes, edges } = useMemo(() => build(graph), [signature]);
+
+  return (
+    <div className="h-[360px] w-full overflow-hidden rounded-(--radius-panel) border border-line bg-surface sm:h-[420px]">
+      <ReactFlow key={signature} nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.25 }} nodesConnectable={false} proOptions={{ hideAttribution: true }}>
+        <Background color="#22362B" gap={22} size={1} />
+      </ReactFlow>
+    </div>
+  );
+}
+
+function build(graph: Graph): { nodes: Node[]; edges: Edge[] } {
   const issuers = graph.nodes.filter((n) => n.type !== "shop");
   const radius = 190;
 
@@ -55,7 +73,8 @@ export function TrustGraph({ graph }: { graph: Graph }) {
           </div>
         ),
       },
-      style: { background: c.bg, color: c.text, border: `1.5px solid ${c.border}`, borderRadius: 10, width: isShop ? 170 : 150, padding: 10, boxShadow: "none" },
+      width: isShop ? 170 : 150, height: isShop ? 62 : 82, // fixed size: no measuring, so the node is visible straight away
+      style: { background: c.bg, color: c.text, border: `1.5px solid ${c.border}`, borderRadius: 10, padding: 10, boxShadow: "none" },
       connectable: false,
     };
   });
@@ -75,13 +94,7 @@ export function TrustGraph({ graph }: { graph: Graph }) {
     };
   });
 
-  return (
-    <div className="h-[360px] w-full overflow-hidden rounded-(--radius-panel) border border-line bg-surface sm:h-[420px]">
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.25 }} nodesConnectable={false} proOptions={{ hideAttribution: true }}>
-        <Background color="#22362B" gap={22} size={1} />
-      </ReactFlow>
-    </div>
-  );
+  return { nodes, edges };
 }
 
 export function GraphLegend() {

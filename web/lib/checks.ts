@@ -4,6 +4,7 @@
 // Pages call this one function and never care which side each check came from.
 
 import { backend, contract, type CredentialView, type Issuer, type Result } from "./mock";
+import type { InvoiceBlock } from "./engine/invoiceState";
 import { usdc } from "./format";
 
 export interface CheckRow {
@@ -20,6 +21,7 @@ export interface EvidenceItem {
   issuer: Issuer | null;
   rows: CheckRow[]; // checks 1-6 in order
   overall: "verified" | "failed" | "unknown";
+  block: InvoiceBlock | null; // the shop's answer to an invoice, when it stops this credential counting
 }
 
 const STACKING_ALERT = 3; // same threshold as the loan recommendation
@@ -74,6 +76,6 @@ export async function loadEvidence(shopId: string): Promise<EvidenceItem[]> {
 
     const rows = [check1, ...middle, check5, check6];
     const overall = rows.some((r) => r.result === "fail" && r.check !== 6) ? "failed" : ev?.overall ?? "unknown";
-    return { view, issuer, rows, overall };
+    return { view, issuer, rows, overall, block: ev?.invoiceBlock ?? null };
   });
 }

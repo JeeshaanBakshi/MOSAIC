@@ -78,6 +78,28 @@ const gupta = A.gupta.address, form = b.exampleApplication("gupta")!;
   try { await withState(() => b.verifyEmail(gupta, codeIn(m2))); ok("old code must fail", codeIn(m2) === codeIn(m3)); } catch (e) { ok("the previous code no longer works after a resend", e instanceof ApiError && e.code === "InvalidOtp"); }
   ok("the newest code works", (await withState(() => b.verifyEmail(gupta, codeIn(m3)))).result.emailVerified);
 
+  console.log("-- uploaded bill PDFs go to their own Redis keys, apart from the app state");
+  {
+    const { readStatementFile } = await import("../lib/server/statementFiles");
+    const { sampleBillPdf } = await import("../lib/server/pdf");
+    await resetEverything();
+    const pdf = sampleBillPdf({ supplier: "Gupta Wholesale", customer: "Sharma Store", monthLabel: "May 2026", total: 45500, bills: 4 });
+    const id = await withState(async () => {
+      const app = await b.seedVerifiedApplication("gupta"); // an approved supplier with one credential, so it can upload bills
+      await c.requestIssuer(A.gupta.address, app.businessName, app.kind, app.evidenceHash);
+      await b.markRequested(A.gupta.address);
+      await c.addIssuer(A.admin.address, A.gupta.address, A.gupta.name, A.gupta.kind!);
+      await c.issueCredential(A.gupta.address, "shop-1", "buyer", "Buys Rs 45,000 a month", "0".repeat(63) + "1");
+      return b.submitStatement(A.gupta.address, "shop-1", { month: "2026-05", billedInr: 45500, billCount: 4, nameOnBill: "Sharma Store", fileName: "may.pdf" }, pdf);
+    });
+    const keys = Object.keys(await dump());
+    const fileKey = keys.find((k) => k.startsWith("mosaic:file:"));
+    ok("the PDF is saved under its own Redis key (not inside the state)", !!fileKey && !(await dump())["mosaic:state"].includes(Buffer.from(pdf).toString("base64").slice(0, 60)));
+    ok("the state holds only the record: the numbers and the fingerprint", JSON.parse((await dump())["mosaic:state"]).db.statements[id.result].fileHash.length === 64);
+    const back = await withState(() => readStatementFile(id.result), { readOnly: true });
+    ok("it reads back from Redis byte for byte", !!back.result && Buffer.compare(back.result.bytes, pdf) === 0);
+  }
+
   console.log("-- reset wipes the cloud data");
   await resetEverything();
   const s2 = JSON.parse((await dump())["mosaic:state"]);

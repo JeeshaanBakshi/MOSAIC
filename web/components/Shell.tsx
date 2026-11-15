@@ -4,7 +4,7 @@
 import { Suspense, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Handshake, Info, Landmark, Menu, ShieldCheck, Store, X, type LucideIcon } from "lucide-react";
+import { Handshake, Info, Landmark, Link2, Menu, ShieldCheck, Store, X, type LucideIcon } from "lucide-react";
 import { useChainMode } from "@/lib/useChainMode";
 import { Wordmark as BrandWordmark } from "@/components/Logo";
 import { PERSONAS, PERSONA_GROUPS, PERSONA_IDS, setRole, useRole, type Persona } from "@/lib/session";
@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/issuer", label: "Issuer", Icon: Handshake },
   { href: "/lender", label: "Lender", Icon: Landmark },
   { href: "/admin", label: "Admin", Icon: ShieldCheck },
+  { href: "/chain", label: "Testnet", Icon: Link2 },
 ];
 
 /** True on large screens (the rail), false on phones and tablets (the drawer). The server assumes large. */

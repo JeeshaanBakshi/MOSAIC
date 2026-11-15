@@ -23,6 +23,9 @@ export interface Storage {
   clear(): Promise<void>;
   version(): Promise<number>;
   withLock<T>(body: () => Promise<T>): Promise<T>;
+  /** Uploaded files (bill PDFs) live under their own keys, as base64 text, apart from the app state. */
+  putFile(key: string, base64: string): Promise<void>;
+  getFile(key: string): Promise<string | null>;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -49,6 +52,8 @@ function redisStorage(url: string, token: string): Storage {
     async version() {
       return Number((await redis.get(VERSION_KEY)) ?? 0);
     },
+    async putFile(key, base64) { await redis.set(`mosaic:file:${key}`, base64); },
+    async getFile(key) { return ((await redis.get(`mosaic:file:${key}`)) as string | null) ?? null; },
     async withLock(body) {
       const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
       let got = false;
@@ -66,13 +71,13 @@ function redisStorage(url: string, token: string): Storage {
   };
 }
 
-type Mem = { state: unknown | null; version: number; chain: Promise<unknown> };
+type Mem = { state: unknown | null; version: number; chain: Promise<unknown>; files: Map<string, string> };
 const g = globalThis as unknown as { __mosaicMem?: Mem };
 const FILE = path.join(process.cwd(), ".local-data", "state.json");
 const useFile = process.env.NODE_ENV === "development";
 
 function memoryStorage(): Storage {
-  const mem = (g.__mosaicMem ??= { state: null, version: 0, chain: Promise.resolve() });
+  const mem = (g.__mosaicMem ??= { state: null, version: 0, chain: Promise.resolve(), files: new Map() });
   if (useFile && mem.state === null) {
     try {
       const saved = JSON.parse(fs.readFileSync(FILE, "utf8"));
@@ -91,8 +96,10 @@ function memoryStorage(): Storage {
     kind: "memory",
     async get() { return mem.state; },
     async save(state, version) { mem.state = structuredClone(state); mem.version = version; persist(); },
-    async clear() { mem.state = null; mem.version = 0; persist(); },
+    async clear() { mem.state = null; mem.version = 0; mem.files.clear(); persist(); },
     async version() { return mem.version; },
+    async putFile(key, base64) { mem.files.set(key, base64); }, // files are kept in memory only (a restart forgets them, in development)
+    async getFile(key) { return mem.files.get(key) ?? null; },
     withLock<T>(body: () => Promise<T>): Promise<T> {
       const run = mem.chain.then(body, body);
       mem.chain = run.catch(() => undefined);

@@ -63,6 +63,29 @@ flowchart LR
 - **Data:** Upstash Redis (cloud database), Resend (email codes), deployed on Vercel.
 - **Rules engine:** plain TypeScript functions, no ML. Missing evidence is always *Unknown*.
 
+### Supplier proof (monthly bills and "is this really your supplier?")
+
+A supplier proves it supplies a shop in two ways. **The shop confirms** ("Is this business your supplier?"), and the supplier **uploads one bill PDF for each of the last 6 months**, with the total billed, the number of bills and the customer name printed on them. Seven plain checks then run: the shop's confirmation, a bill for every month, **each month's bills against what the payment app saw the shop pay the supplier's verified account (net of money sent back, at least 70%)**, a regular payment trail, the bills naming this shop, **no reused PDF** (the same file for another month, shop or supplier is caught by its SHA-256 fingerprint), and independence from the shop. Missing evidence is unknown, never failed. The lender sees this in the verification report, and the admin sees it in the case file. PDFs are checked (a real PDF, 200 bytes to 400 KB) and stored in their own keys, apart from the app state. **The text inside the PDF is not read yet** (that needs document parsing, such as GST e-invoice QR codes): the PDF is stored for a person to open, and the typed-in totals are what is checked. All of it is off-chain and the bills are made-up samples.
+
+### Rejection cases (admin approval, warnings, removal)
+
+When a shop rejects or disputes an invoice, or a lender reports wrong information in a claim, a **case** opens for the admin. The admin downloads the **case file as a PDF** (the reason, what the rules engine found, the invoice evidence, the supplier's record, and what each decision does) and decides. **Approve:** the credential is revoked, its stake is deducted (to the lender who rejected it, or to the platform) and the supplier gets a **warning**. **The 3rd warning removes the supplier from the system.** **Dismiss:** no penalty, and a dismissed shop rejection stops holding the credential back. Rulings are kept and cannot be changed. The stake deduction and the removal run in the website's simulation and are not sent to Stellar: the deployed contract only slashes a stake after a reported default, and it is unchanged.
+
+### See the chain
+
+The **Testnet** page (`/chain`) reads the deployed contract live from Stellar testnet and shows its settings, issuers, every credential (with the raw decoded value), disputes, the USDC it holds, and every transaction that called it with the USDC that moved. It needs no keys and is separate from the website's simulation, so it is the ground truth. It also compares the website's credential counts with the chain's.
+
+### Evidence behind each claim (off-chain layer on top of the six checks)
+
+A signature shows who made a claim, not that it is true. So the lender's **verification report** also looks at the evidence behind each credential:
+
+- **Two-sided confirmation.** A supplier submits an invoice claim. The shop it names confirms, rejects or disputes it (with a reason). Answers are kept, never overwritten. A rejected or upheld-disputed claim stops that credential from counting as verified; an open dispute holds it back until the admin rules.
+- **Invoice-to-payment matching.** The invoice is compared with payment-app records: reference, amount (exact, partial, over), payer and payee, dates, duplicates, reversals, cancellations and credit notes. The result lists what was found, why it matters, what is missing and what to do. A perfect amount from the wrong payer still needs review.
+- **Evidence freshness.** Recent, Ageing, Stale or Expired, from one set of thresholds (`web/lib/engine/evidence.ts`). Old evidence stays visible, labelled with its age.
+- **Issuer reliability.** A category (Established, Limited history, Under review, Restricted) with the numbers and reasons behind it, never a hidden score. Small samples are never "Established".
+
+All of this is kept by the MOSAIC backend and is **not on Stellar**. Only the supplier's credential (and the pass/fail flag the rules engine sets on it) is on-chain; the contract is unchanged. The invoices, payment records and the three demo scenarios (genuine, false claim, inflated invoice) are made-up sample data.
+
 ## On-chain vs off-chain
 
 | On-chain (public) | Off-chain (private) |
@@ -175,7 +198,9 @@ The website keeps its own fast simulation of the contract. When the server has t
 - **Live mirroring needs the server keys.** The mirror was tested locally against the real contract (see the table above). It is only active on the live site once the keys are set in Vercel.
 - **The shop cannot yet choose which credentials a lender sees.** A lender who pays sees all of a shop's credentials. Consent and share links are planned.
 - Without wallets, "You are" lets any visitor play any role. That's fine for a demo; wallet signatures will fix it.
-- GST and RBI registry lookups, sales records and payment records are fake demo data.
+- GST and RBI registry lookups, sales records, invoices and payment records are fake demo data. There is no real GST e-invoice or bank/UPI integration yet.
+- Shop confirmations use the role switcher, so they are not real log-in security. A real version needs a phone-code login for shopkeepers and wallet signatures for issuers.
+- Invoice claims, confirmations and matching results are off-chain. Anchoring their fingerprints on Stellar would need a contract upgrade, which is not part of this version.
 - The USDC is a test token on testnet.
 - Not a KYC replacement: MOSAIC shows trading relationships, not identity.
 
