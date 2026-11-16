@@ -9,12 +9,14 @@ import { useQuery } from "@/lib/hooks";
 import { formatDate, short, txUrl, usdc } from "@/lib/format";
 import type { ChainSnapshot, ChainTx } from "@/lib/server/chainState";
 import { Badge, Notice, PageTitle, Panel, Rows, Section, Skeleton } from "@/components/ui";
+import { TabPanel, Tabs } from "@/components/Tabs";
 
 type Rec = Record<string, unknown>;
 const POLL_MS = 8000;
 const num = (v: unknown) => Number(v ?? 0);
 
 export default function ChainPage() {
+  const [tab, setTab] = useState<"overview" | "credentials" | "transactions">("overview");
   const [snap, setSnap] = useState<ChainSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(0); // set by a timer each second (never during the first render), so "read Ns ago" counts up
@@ -42,7 +44,7 @@ export default function ChainPage() {
   return (
     <div className="space-y-12">
       <PageTitle title="Stellar testnet inspector">
-        Everything the real contract holds, read live from the chain. This is not the website&apos;s simulation.
+        Read live from the chain, not the website&apos;s simulation.
       </PageTitle>
 
       {error && <Notice tone="error"><b className="font-medium">Could not read the chain.</b> {error} Nothing was changed; it tries again automatically.</Notice>}
@@ -50,84 +52,88 @@ export default function ChainPage() {
 
       {snap && (
         <>
-          <Panel className="space-y-4">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <Badge state="pass">Live on Stellar testnet</Badge>
-              <span className="inline-flex items-center gap-2 text-sm text-quiet"><RefreshCw className="size-3.5" aria-hidden />Ledger {snap.latestLedger?.toLocaleString("en-US") ?? "?"}, read {age}s ago, refreshes every {POLL_MS / 1000}s</span>
-            </div>
-            <dl className="grid gap-3 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-8">
-              <dt className="text-quiet">MOSAIC contract</dt>
-              <dd className="min-w-0"><a href={`${snap.explorer}/contract/${snap.contractId}`} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{snap.contractId}<ExternalLink className="ml-1 inline size-3" aria-hidden /></a></dd>
-              <dt className="text-quiet">Test USDC contract</dt>
-              <dd className="min-w-0"><a href={`${snap.explorer}/contract/${snap.usdcId}`} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{snap.usdcId}<ExternalLink className="ml-1 inline size-3" aria-hidden /></a></dd>
-              <dt className="text-quiet">Stakes held by the contract</dt>
-              <dd className="t-num">{snap.contractUsdc === null ? "could not read" : usdc(num(snap.contractUsdc))}</dd>
-            </dl>
-            {snap.config && (
-              <p className="text-sm text-quiet">
-                Rules fixed at deploy: fee {usdc(num(snap.config.verify_fee))} per check, {num(snap.config.issuer_share_bps) / 100}% to the issuers who vouched, stake {usdc(num(snap.config.stake_amount))} per credential, run by the {who(String(snap.config.admin))} account.
-              </p>
-            )}
-          </Panel>
+          <Tabs label="Testnet sections" active={tab} onChange={setTab} tabs={[
+            { id: "overview", label: "Overview" },
+            { id: "credentials", label: "Credentials", count: snap.shops.reduce((n, s) => n + s.credentials.length, 0) },
+            { id: "transactions", label: "Transactions", count: snap.history.length },
+          ]} />
 
           {snap.problems.length > 0 && <Notice tone="warn"><b className="font-medium">Some reads failed:</b> {snap.problems.join(" · ")}</Notice>}
 
-          <Match snap={snap} />
+          <TabPanel id="overview" active={tab}>
+            <Panel className="space-y-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Badge state="pass">Live on Stellar testnet</Badge>
+                <span className="inline-flex items-center gap-2 text-sm text-quiet"><RefreshCw className="size-3.5" aria-hidden />Ledger {snap.latestLedger?.toLocaleString("en-US") ?? "?"}, read {age}s ago</span>
+              </div>
+              <dl className="grid gap-3 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-8">
+                <dt className="text-quiet">MOSAIC contract</dt>
+                <dd className="min-w-0"><a href={`${snap.explorer}/contract/${snap.contractId}`} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{snap.contractId}<ExternalLink className="ml-1 inline size-3" aria-hidden /></a></dd>
+                <dt className="text-quiet">Test USDC</dt>
+                <dd className="min-w-0"><a href={`${snap.explorer}/contract/${snap.usdcId}`} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{snap.usdcId}<ExternalLink className="ml-1 inline size-3" aria-hidden /></a></dd>
+                <dt className="text-quiet">Stakes held</dt>
+                <dd className="t-num">{snap.contractUsdc === null ? "could not read" : usdc(num(snap.contractUsdc))}</dd>
+                {snap.config && (<><dt className="text-quiet">Contract settings</dt><dd>Fee {usdc(num(snap.config.verify_fee))} · {num(snap.config.issuer_share_bps) / 100}% to issuers · stake {usdc(num(snap.config.stake_amount))}</dd></>)}
+              </dl>
+            </Panel>
 
-          <Section title={`Issuer registry (${snap.issuers.length})`} aside="list_issuers">
-            <Rows>
-              {snap.issuers.map((i) => (
-                <div key={String(i.address)} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
-                  <span className="font-medium">{String(i.name)}</span>
-                  <Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge>
-                  <span className="text-quiet">{String(i.kind)} · {num(i.upheld_claims)} of 2 upheld disputes</span>
-                  <code className="ml-auto font-mono text-xs text-faint" title={String(i.address)}>{short(String(i.address), 6)}</code>
-                </div>
-              ))}
-              {snap.issuers.length === 0 && <p className="py-3 text-sm text-quiet">No issuers on-chain.</p>}
-            </Rows>
-          </Section>
+            <Match snap={snap} />
 
-          <Section title="Credentials stored on-chain" aside="get_credentials, decoded">
-            <div className="space-y-8">
-              {snap.shops.map((s) => (
-                <div key={s.id} className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <h3 className="text-base font-medium">{s.id}</h3>
-                    <span className="text-sm text-quiet">{s.credentials.length} credential{s.credentials.length === 1 ? "" : "s"} · {s.checksLast30Days ?? "?"} lender check{s.checksLast30Days === 1 ? "" : "s"} in 30 days (a count of verify calls)</span>
-                    {s.defaulted && <Badge state="fail">Default reported</Badge>}
-                  </div>
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    {s.credentials.map((v) => <CredentialCard key={String((v.credential as Rec).id)} v={v} who={who} />)}
-                  </div>
-                </div>
-              ))}
+            <div className="grid gap-8 lg:grid-cols-2">
+              <div className="space-y-3">
+                <h2 className="text-lg font-medium tracking-tight">Issuers ({snap.issuers.length})</h2>
+                <Rows>
+                  {snap.issuers.map((i) => (
+                    <div key={String(i.address)} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-sm">
+                      <span className="font-medium">{String(i.name)}</span>
+                      <Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge>
+                      <span className="text-quiet">{String(i.kind)} · {num(i.upheld_claims)} of 2 upheld</span>
+                    </div>
+                  ))}
+                  {snap.issuers.length === 0 && <p className="py-3 text-sm text-quiet">None on-chain.</p>}
+                </Rows>
+              </div>
+              <div className="space-y-3">
+                <h2 className="text-lg font-medium tracking-tight">Disputes ({snap.disputes.length})</h2>
+                {snap.disputes.length === 0 ? <p className="text-sm text-quiet">None.</p> : (
+                  <Rows>
+                    {snap.disputes.map((d) => (
+                      <div key={String(d.id)} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-sm">
+                        <span className="font-medium">Dispute {String(d.id)} · credential {String(d.credential_id)}</span>
+                        <Badge state={d.resolved ? (d.upheld ? "failed" : "pass") : "open"}>{d.resolved ? (d.upheld ? "Upheld" : "Rejected") : "Open"}</Badge>
+                        <span className="text-quiet">{who(String(d.lender))}</span>
+                      </div>
+                    ))}
+                  </Rows>
+                )}
+              </div>
             </div>
-          </Section>
+          </TabPanel>
 
-          <Section title={`Disputes (${snap.disputes.length})`} aside="list_disputes">
-            {snap.disputes.length === 0 ? <p className="text-sm text-quiet">None.</p> : (
-              <Rows>
-                {snap.disputes.map((d) => (
-                  <div key={String(d.id)} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
-                    <span className="font-medium">Dispute {String(d.id)} on credential {String(d.credential_id)}</span>
-                    <Badge state={d.resolved ? (d.upheld ? "failed" : "pass") : "open"}>{d.resolved ? (d.upheld ? "Upheld, stake slashed" : "Rejected") : "Open"}</Badge>
-                    <span className="text-quiet">opened by {who(String(d.lender))}</span>
-                  </div>
-                ))}
-              </Rows>
-            )}
-          </Section>
+          <TabPanel id="credentials" active={tab}>
+            {snap.shops.map((s) => (
+              <div key={s.id} className="space-y-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <h3 className="text-base font-medium">{s.id}</h3>
+                  <span className="text-sm text-quiet">{s.credentials.length} credential{s.credentials.length === 1 ? "" : "s"} · {s.checksLast30Days ?? "?"} verify call{s.checksLast30Days === 1 ? "" : "s"} in 30 days</span>
+                  {s.defaulted && <Badge state="fail">Default reported</Badge>}
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {s.credentials.map((v) => <CredentialCard key={String((v.credential as Rec).id)} v={v} who={who} />)}
+                </div>
+              </div>
+            ))}
+          </TabPanel>
 
-          <Section title={`Every transaction that called the contract (${snap.history.length})`} aside="from Stellar Horizon, newest first">
+          <TabPanel id="transactions" active={tab}>
             <div className="relative overflow-x-auto">
               <table className="dtable min-w-[40rem]">
                 <thead><tr><th>When (UTC)</th><th>Who</th><th>Function</th><th>USDC moved</th><th><span className="sr-only">Link</span></th></tr></thead>
                 <tbody>{snap.history.map((h) => <TxRow key={h.id} h={h} who={who} />)}</tbody>
               </table>
             </div>
-            <p className="mt-3 text-xs text-quiet">Only the six demo accounts are followed. Open the contract on Stellar Expert for anyone else&apos;s calls.</p>
-          </Section>
+            <p className="text-xs text-quiet">The six demo accounts only. Others: see the contract on Stellar Expert.</p>
+          </TabPanel>
         </>
       )}
     </div>
@@ -152,7 +158,7 @@ function Match({ snap }: { snap: ChainSnapshot }) {
           </div>
         ))}
       </Rows>
-      <p className="mt-3 text-sm text-quiet">The website shows a simulation so the demo is fast and repeatable, and sends the main actions to the contract. If these numbers differ, the chain is the truth.</p>
+      <p className="mt-3 text-sm text-quiet">If these differ, the chain is the truth.</p>
     </Section>
   );
 }
@@ -172,7 +178,7 @@ function CredentialCard({ v, who }: { v: Rec; who: (a: string) => string }) {
       <details className="text-sm">
         <summary className="cursor-pointer text-quiet underline underline-offset-4">Raw contract value (decoded)</summary>
         <pre className="mt-2 overflow-x-auto rounded-(--radius-control) bg-wash p-3 font-mono text-xs leading-relaxed">{JSON.stringify({ credential: decoded, status }, null, 2)}</pre>
-        <p className="mt-2 text-xs text-quiet">claim_hash is a 32-byte fingerprint of the evidence. The evidence itself is never on-chain. Full hash: <span className="break-all font-mono">{String(c.claim_hash)}</span></p>
+        <p className="mt-2 text-xs text-quiet">claim_hash is a fingerprint; the evidence is never on-chain. Full hash: <span className="break-all font-mono">{String(c.claim_hash)}</span></p>
       </details>
     </article>
   );

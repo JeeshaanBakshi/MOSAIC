@@ -2,7 +2,7 @@ import "server-only";
 // LOANS: the shopkeeper asks, the lender decides. All off-chain: the shop never needs a wallet or crypto.
 //
 //   shopkeeper: requestLoan -> (wait) -> sees approved / declined, or withdrawLoan
-//   lender:     listLoans -> contract.verify (pays 1 USDC, sees the evidence) -> getLoanDecision -> decideLoan
+//   lender:     listLoans -> contract.verify (pays the fee, sees the evidence) -> getLoanDecision -> decideLoan
 //
 // The recommendation is plain rules, built on the shop checks (backend.getShopReview):
 //   1. at least 2 independent issuers, a supplier AND a payment provider, with credentials still valid for 30+ days

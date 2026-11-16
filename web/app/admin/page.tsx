@@ -3,14 +3,16 @@
 // Contract functions used: add_issuer, reject_issuer, suspend_issuer (mock-only), resolve_dispute,
 // and the reads get_credentials / get_issuer / balances. Applications are in components/Applications.tsx.
 import { useState } from "react";
-import { CONTRACT_ADDRESS, contract, nameOf, type Dispute, type Issuer } from "@/lib/mock";
+import { CONTRACT_ADDRESS, backend, contract, nameOf, type Dispute, type Issuer } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
 import { PERSONAS, accountOf, setRole, useRole } from "@/lib/session";
 import { usdc, short } from "@/lib/format";
-import { Badge, Button, Notice, PageTitle, Panel, Rows, Section, Skeleton } from "@/components/ui";
+import { Badge, Button, Notice, PageTitle, Panel, Skeleton } from "@/components/ui";
 import { Applications } from "@/components/Applications";
 import { ShopReviewPanel } from "@/components/ShopReviewPanel";
-import { EvidenceAdmin } from "@/components/EvidenceAdmin";
+import { EvidenceAttention } from "@/components/EvidenceAdmin";
+import { ReliabilityBadge } from "@/components/EvidenceBits";
+import { TabPanel, Tabs } from "@/components/Tabs";
 import { CaseFiles } from "@/components/CaseFiles";
 import { TestTools } from "@/components/TestTools";
 import { OnChainPanel } from "@/components/OnChainPanel";
@@ -18,6 +20,8 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { SystemLog } from "@/components/SystemLog";
 import { errorToast, txToast } from "@/components/toast";
 import { TxRef } from "@/components/TxRef";
+
+type AdminTab = "applications" | "issuers" | "cases" | "shops" | "evidence" | "disputes" | "onchain" | "tools";
 
 interface Snapshot { lender: number; escrow: number; issuer: Issuer | null }
 interface Outcome { id: number; upheld: boolean; hash: string; onchain: boolean; issuerName: string; before: Snapshot; after: Snapshot }
@@ -35,6 +39,11 @@ export default function AdminPage() {
     return (await Promise.all(shops.map((s) => contract.getCredentials(s)))).flat();
   });
   const escrow = useQuery(() => contract.getBalance(CONTRACT_ADDRESS));
+  const reliability = useQuery(() => backend.listIssuerReliability());
+  const cases = useQuery(() => backend.getCases({ status: "open" }));
+  const evidence = useQuery(() => backend.getEvidenceAttention());
+  const requests = useQuery(() => contract.listIssuerRequests());
+  const [tab, setTab] = useState<AdminTab>("applications");
 
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -64,17 +73,24 @@ export default function AdminPage() {
     txToast(upheld ? `Dispute #${d.id} upheld: stake slashed to the lender` : `Dispute #${d.id} rejected`, hash, onchain);
   });
 
-  return (
-    <div className="space-y-12">
-      <PageTitle title="Admin">
-        Approve issuers. Settle disputes.
-      </PageTitle>
+  const openDisputes = (disputes.data ?? []).filter((d) => !d.resolved).length;
+  const waiting = (requests.data ?? []).filter((r) => r.status === "Pending").length;
+  const relOf = (a: string) => reliability.data?.find((r) => r.address === a);
 
-      <nav aria-label="On this page" className="-mx-6 flex gap-1 overflow-x-auto border-b border-line px-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0">
-        {[["#applications", "Applications"], ["#issuers", "Issuers"], ["#shops", "Shop checks"], ["#cases", "Cases"], ["#reliability", "Reliability"], ["#evidence", "Evidence"], ["#disputes", "Disputes"], ["#tools", "Test tools"], ["#logs", "Logs"]].map(([href, label]) => (
-          <a key={href} href={href} className="shrink-0 border-b-2 border-transparent px-4 py-4 text-sm font-medium text-quiet hover:border-pine hover:text-ink">{label}</a>
-        ))}
-      </nav>
+  return (
+    <div className="space-y-8">
+      <PageTitle title="Admin" />
+
+      <Tabs label="Admin sections" active={tab} onChange={setTab} tabs={[
+        { id: "applications", label: "Applications", count: waiting },
+        { id: "issuers", label: "Issuers" },
+        { id: "cases", label: "Cases", count: cases.data?.length },
+        { id: "shops", label: "Shop checks" },
+        { id: "evidence", label: "Evidence", count: evidence.data?.length },
+        { id: "disputes", label: "Disputes", count: openDisputes },
+        { id: "onchain", label: "On-chain" },
+        { id: "tools", label: "Tools and logs" },
+      ]} />
 
       {!isAdmin && (
         <Notice tone="warn">
@@ -82,92 +98,104 @@ export default function AdminPage() {
         </Notice>
       )}
 
-      {outcome && <OutcomePanel o={outcome} />}
+      <TabPanel id="applications" active={tab}><Applications /></TabPanel>
 
-      <div id="applications" className="scroll-mt-24"><Applications /></div>
-
-      <Section id="issuers" title="Issuer registry" aside="Check 1: only approved issuers can sign">
-        {(issuers.data ?? []).length === 0 ? (
-          <p className="text-sm text-quiet">No issuers yet. Until an application is approved, the contract rejects every credential.</p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="dtable min-w-[34rem]">
-              <thead>
-                <tr>
-                  <th scope="col">Issuer</th>
-                  <th scope="col">Kind</th>
-                  <th scope="col">Disputes upheld</th>
-                  <th scope="col">Status</th>
-                  <th scope="col"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {issuers.data!.map((i) => (
-                  <tr key={i.address}>
-                    <td><div className="font-medium">{i.name}</div><div className="text-xs text-faint">{short(i.address)}</div></td>
-                    <td>{i.kind === "Supplier" ? "Supplier" : "Payment app"}</td>
-                    <td className="t-num">{i.upheldClaims} of 2</td>
-                    <td><Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge></td>
-                    <td className="text-right">
-                      {i.active && <Button variant="secondary" disabled={busy !== null} onClick={() => suspend(i)} title="Prototype only: the contract suspends automatically after 2 upheld disputes">Suspend</Button>}
-                    </td>
+      <TabPanel id="issuers" active={tab}>
+        <div id="issuers" className="space-y-3">
+          <h2 className="text-lg font-medium tracking-tight">Issuer registry</h2>
+          {(issuers.data ?? []).length === 0 ? (
+            <p className="text-sm text-quiet">No issuers yet.</p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="dtable min-w-[44rem]">
+                <thead>
+                  <tr>
+                    <th scope="col">Issuer</th>
+                    <th scope="col">Kind</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Reliability</th>
+                    <th scope="col" className="text-right">Warnings</th>
+                    <th scope="col" className="text-right">Upheld</th>
+                    <th scope="col"><span className="sr-only">Actions</span></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {issuers.data!.map((i) => {
+                    const r = relOf(i.address);
+                    return (
+                      <tr key={i.address}>
+                        <td><div className="font-medium">{i.name}</div><div className="text-xs text-faint">{short(i.address)}</div></td>
+                        <td>{i.kind === "Supplier" ? "Supplier" : "Payment app"}</td>
+                        <td><Badge state={i.active ? "active" : "suspended"}>{i.active ? "Active" : "Suspended"}</Badge></td>
+                        <td>{r ? <span title={r.reasons.join(" ")}><ReliabilityBadge category={r.category} /></span> : <Skeleton className="h-5 w-20" />}{r && <div className="mt-1 text-xs text-faint">{r.metrics.credentialsIssued} issued · {r.metrics.confirmed} confirmed · {r.metrics.rejected + r.metrics.disputed} rejected or disputed</div>}</td>
+                        <td className="t-num text-right">{r ? `${r.metrics.warnings} of 3` : "-"}</td>
+                        <td className="t-num text-right">{i.upheldClaims} of 2</td>
+                        <td className="text-right">
+                          {i.active && <Button variant="secondary" disabled={busy !== null} onClick={() => suspend(i)} title="Prototype only: the contract suspends automatically after 2 upheld disputes">Suspend</Button>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </TabPanel>
+
+      <TabPanel id="cases" active={tab}><CaseFiles /></TabPanel>
+
+      <TabPanel id="shops" active={tab}><div id="shops"><ShopReviewPanel /></div></TabPanel>
+
+      <TabPanel id="evidence" active={tab}>
+        <h2 className="text-lg font-medium tracking-tight">Evidence needing a person ({(evidence.data ?? []).length})</h2>
+        <EvidenceAttention />
+      </TabPanel>
+
+      <TabPanel id="disputes" active={tab}>
+        {outcome && <OutcomePanel o={outcome} />}
+        <div id="disputes" className="space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-medium tracking-tight">Disputes</h2>
+            <span className="text-sm text-quiet">Stakes held: {escrow.data === undefined ? <Skeleton className="h-4 w-16" /> : usdc(escrow.data)}</span>
           </div>
-        )}
-      </Section>
-
-      <ShopReviewPanel />
-
-      <CaseFiles />
-
-      <EvidenceAdmin />
-
-      <Section id="disputes" title="Disputes" aside={<>Stakes held by the contract: {escrow.data === undefined ? <Skeleton className="h-4 w-16" /> : usdc(escrow.data)}</>}>
-        {(disputes.data ?? []).length === 0 && <p className="text-sm text-quiet">No disputes yet. Lenders open them from the Lender page.</p>}
-        <Rows>
-          {(disputes.data ?? []).map((d) => {
-            const c = credentials.data?.find((x) => x.credential.id === d.credentialId);
-            return (
-              <div key={d.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {(disputes.data ?? []).length === 0 && <p className="text-sm text-quiet">No disputes yet. Lenders open them from the Lender page.</p>}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {(disputes.data ?? []).map((d) => {
+              const c = credentials.data?.find((x) => x.credential.id === d.credentialId);
+              return (
+                <article key={d.id} className="space-y-3 rounded-(--radius-panel) border border-line bg-surface p-5">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <span className="font-medium">Dispute {d.id}</span>
                     {d.resolved ? <Badge state={d.upheld ? "failed" : "pass"}>{d.upheld ? "Upheld" : "Rejected"}</Badge> : <Badge state="open">Open</Badge>}
                   </div>
-                  <p className="mt-1 text-sm text-quiet">
-                    {nameOf(d.lender)} disputes credential {d.credentialId}
-                    {c && <> from {c.issuerName}: &ldquo;{c.credential.summary}&rdquo;</>}
-                  </p>
-                  {c && <p className="text-sm text-quiet">Stake still locked: {usdc(c.credential.stake)}. Status: {c.status.toLowerCase()}.</p>}
-                  {!d.resolved && <p className="text-xs text-faint">Upholding needs a lender to have reported that the shop defaulted. Otherwise the contract refuses.</p>}
-                </div>
-                {!d.resolved && (
-                  <div className="flex shrink-0 gap-2">
-                    <Button variant="secondary" disabled={busy !== null} onClick={() => resolve(d, false)}>{busy === `${d.id}-false` ? "…" : "Reject"}</Button>
-                    <Button variant="danger" disabled={busy !== null} onClick={() => resolve(d, true)}>{busy === `${d.id}-true` ? "Slashing…" : "Uphold and slash"}</Button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </Rows>
-      </Section>
-
-      <OnChainPanel />
-
-      <details className="group rounded-(--radius-panel) border border-line bg-surface p-6">
-        <summary className="cursor-pointer list-none text-lg font-medium tracking-tight">Test tools and logs <span className="text-sm font-normal text-quiet">(for the demo)</span></summary>
-        <div className="mt-6 space-y-10">
-          <TestTools />
-          <Section id="logs" title="Logs" className="space-y-6">
-            <ActivityLog />
-            <SystemLog />
-          </Section>
+                  <p className="text-sm text-quiet">{nameOf(d.lender)} · credential {d.credentialId}{c && <> · {c.issuerName}</>}</p>
+                  {c && <p className="text-sm text-quiet">Stake {usdc(c.credential.stake)} · {c.status.toLowerCase()}</p>}
+                  {!d.resolved && (
+                    <>
+                      <p className="text-xs text-faint">Upholding needs a reported default.</p>
+                      <div className="flex gap-2">
+                        <Button variant="secondary" disabled={busy !== null} onClick={() => resolve(d, false)}>{busy === `${d.id}-false` ? "…" : "Reject"}</Button>
+                        <Button variant="danger" disabled={busy !== null} onClick={() => resolve(d, true)}>{busy === `${d.id}-true` ? "Slashing…" : "Uphold and slash"}</Button>
+                      </div>
+                    </>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         </div>
-      </details>
+      </TabPanel>
+
+      <TabPanel id="onchain" active={tab}><OnChainPanel /></TabPanel>
+
+      <TabPanel id="tools" active={tab}>
+        <TestTools />
+        <div className="grid gap-8 lg:grid-cols-2">
+          <ActivityLog />
+          <SystemLog />
+        </div>
+      </TabPanel>
     </div>
   );
 }

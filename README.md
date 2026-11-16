@@ -9,7 +9,7 @@
 | **Contract (Stellar testnet)** | `CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG` ([Stellar Expert](https://stellar.expert/explorer/testnet/contract/CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG)) |
 | **Devpost** | _coming soon_ |
 
-Built for the *Blockchain Innovation Challenge powered by Stellar*, Problem Space 2: Verification Infrastructure for the Next Billion Customers. **Testnet only.**
+Made by **Jeeshaan Bakshi & Ashmit Bharti**. Built for the *Blockchain Innovation Challenge powered by Stellar*, Problem Space 2: Verification Infrastructure for the Next Billion Customers. **Testnet only.**
 
 ## The problem
 
@@ -19,21 +19,21 @@ A small shop in India (a kirana) can run for ten years and still have no credit 
 
 1. **Issuer (a supplier or a payment app).** It applies and the admin approves it. An approved issuer signs a one-line claim about a shop ("regular buyer for 18 months, pays on time" or "UPI receipts above ₹50,000 a month") and locks a **30 USDC stake** behind it.
 2. **Store owner.** The shop pays nothing and never touches crypto. A shop is just a name; it needs no wallet.
-3. **Lender.** A lender pays **1 USDC** to check a shop. It sees every credential with six fraud checks and a loan recommendation, then approves or declines.
+3. **Lender.** A lender pays **5 USDC** to check a shop. It sees every credential with six fraud checks and a loan recommendation, then approves or declines.
 
 ```mermaid
 flowchart LR
-  I[Issuer: supplier or payment app] -- "signs a claim + locks 30 USDC" --> C[(MOSAIC contract on Stellar)]
+  I[Issuer: supplier or payment app] -- "signs a claim + locks 20 USDC" --> C[(MOSAIC contract on Stellar)]
   C -- "credentials about" --> S[Store]
-  L[Lender] -- "pays 1 USDC to check" --> C
-  C -- "70% shared by issuers whose claims passed" --> I
+  L[Lender] -- "pays 5 USDC to check" --> C
+  C -- "half shared by issuers whose claims passed" --> I
   C -- "30% to the platform" --> P[Platform]
   B[Backend rules engine] -- "payment-app checks: marks claims passed" --> C
 ```
 
 ## What's different
 
-- **Staking.** An issuer locks 30 USDC (test USDC) per credential. It is returned after the credential expires (90 days), unless the claim is proven false.
+- **Staking.** An issuer locks 20 USDC (test USDC) per credential. It is returned after the credential expires (90 days), unless the claim is proven false.
 - **Disputes.** A lender who checked the shop can dispute a credential. The admin decides. If upheld, the stake is paid to the lender, the credential is revoked and the issuer gets a strike. **Two upheld disputes suspend the issuer.** A dispute can only be upheld after a lender reports that the shop defaulted, so a claim is not "proven false" just because someone says so.
 - **Stacking counter.** Every check increments a per-shop counter. The lender sees how many lender checks a shop had in the last 30 days, so it can spot a shop borrowing from many lenders at once. The loan limit is halved when there are 3 or more.
 - **Privacy.** Payment records, bank accounts and phone numbers stay off-chain. On-chain there is only the one-line conclusion, a hash of the evidence, the issuer, the dates and the stake. See [On-chain vs off-chain](#on-chain-vs-off-chain).
@@ -47,13 +47,14 @@ flowchart LR
 | 2 | Payment match | A supplier's "₹X a month" counts only if **payment-app records** show the shop paid that supplier's verified account at least 70% of X over 6 months. What the supplier types is shown as "Supplier says" and never used. | Backend |
 | 3 | Independence | An issuer that shares an owner, phone, bank account or address with the shop is not counted. The matching field is shown. | Backend |
 | 4 | Net flow | Money the supplier's account sent back within 30 days is subtracted (from payment-app data), then check 2 is run again | Backend |
-| 5 | Stake and claim | 30 USDC locked per claim. If upheld after a default, the stake goes to the lender. 2 upheld claims suspend the issuer. | Contract |
+| 5 | Stake and claim | 20 USDC locked per claim. If upheld after a default, the stake goes to the lender. 2 upheld claims suspend the issuer. | Contract |
 | 6 | Stacking counter | Lender checks on this shop in the last 30 days | Contract |
 
 ## How it makes money
 
-- The **lender pays 1 USDC** for each check.
-- **70% is shared equally** by the issuers whose claims passed the checks and are still valid. The other **30% goes to the platform.** If no issuer earned anything, the lender pays only the platform's 30%.
+- The **lender pays 5 USDC** for each check.
+- **2.50 USDC (half) is shared equally** by the issuers whose claims passed the checks and are still valid. The other **2.50 USDC goes to the platform.** If no issuer earned anything, the lender pays only the platform's 2.50 USDC.
+- **Settings on-chain:** these figures (5 USDC fee, 50% share, 20 USDC stake) are what the website's rules use. The contract deployed on testnet was set up earlier with **1 USDC, 70% and 30 USDC**, and those are fixed when a contract is deployed. A new deployment with `init(…, 5, 50%, 20)` would make the chain match; until then the website's simulation and the real contract differ, and the Testnet page shows the deployed values.
 - **Store owners pay nothing.**
 
 ## Tech stack
@@ -107,7 +108,7 @@ The one-line conclusion is public and can contain the claimed monthly amount (fo
 | `add_issuer` | admin | Approve an issuer (check 1) |
 | `request_issuer` | the applicant | Ask to join; only a hash of the evidence is stored |
 | `reject_issuer` | admin | Reject a request (the applicant may apply again) |
-| `issue_credential` | an approved issuer | Sign a claim about a shop and lock the 30 USDC stake |
+| `issue_credential` | an approved issuer | Sign a claim about a shop and lock the stake (20 USDC on the website, 30 on the first deployment) |
 | `mark_checked` | admin (for the backend) | Record whether a claim passed the backend's checks |
 | `revoke` | the issuer of that credential | Withdraw a claim (the stake stays locked until it expires) |
 | `release_stake` | the issuer | Get the stake back after expiry, if no dispute is open |
@@ -146,11 +147,12 @@ Environment variables are listed in [`web/README.md`](web/README.md#environment-
 
 1. Open https://mosiac-eight.vercel.app. The example data loads itself on the first visit.
 2. Press **Try the demo with Sharma Store**. It opens the lender view (Saathi Microfinance) on Sharma Store, Delhi.
-3. Press **Check the shop**. The lender pays 1 USDC, and the verdict card shows "Approve up to ₹22,500", "6 of 6 checks passed", and where the fee went. With testnet keys on the server it shows a real Stellar Expert link; otherwise it says "simulated".
+3. Press **Check the shop**. The lender pays 5 USDC, and the verdict card shows "Approve up to ₹22,500", "6 of 6 checks passed", and where the fee went. With testnet keys on the server it shows a real Stellar Expert link; otherwise it says "simulated".
 4. Press **Review** on **Sunrise Mart**, then **Check the shop**: "Unknown, not bad", no limit, "needs an independent payment app".
-5. Back on Sharma Store, open **QuickSupply** and **Anand Traders** in the evidence list: QuickSupply fails net flow (₹1,40,000 of ₹1,50,000 came straight back), Anand Traders fails independence (same phone and bank account as the shop). Both show as "Not counted".
+5. Open the **Report** tab: Gupta's invoice is confirmed and matched (strong), QuickSupply's claim is rejected by the shop (flagged), and a second Gupta invoice is only 33.3% paid (needs review). Open the **Six checks** tab: QuickSupply fails net flow (₹1,40,000 of ₹1,50,000 came straight back), Anand Traders fails independence (same phone and bank account as the shop). Both show as "Not counted".
 6. Press **Demo: 2 other lenders also check this shop** to see the stacking warning.
-7. To see a slash: on QuickSupply press **Open dispute**, then **Report a default**, switch "You are" to Mosaic admin and press **Uphold and slash**. The 30 USDC stake goes to the lender.
+7. To see a rejection case: switch "You are" to Mosaic admin, open the **Cases** tab, download the case file (PDF), write a note and press **Approve**. The stake is deducted (simulated) and the supplier gets warning 1 of 3.
+8. Open **Testnet** in the menu to see the real contract and its transactions, read live from Stellar.
 
 A click-by-click script with what to say is in [`DEMO.md`](DEMO.md).
 
@@ -160,6 +162,8 @@ A click-by-click script with what to say is in [`DEMO.md`](DEMO.md).
 - **Web (TypeScript):** `cd web && npm test`: 208 engine tests (rules 56, onboarding 46, shop review 33, loans 29, demo cases 25, testnet mirror 14, rate limit 5), 31 cloud tests and 135 browser tests, all pass.
 
 ## Verified on testnet
+
+These transactions come from the **first deployment**, which was set up with a 1 USDC fee, 70% to issuers and a 30 USDC stake, so the amounts below are those.
 
 Every link is a real transaction on the Stellar testnet contract above.
 
@@ -215,4 +219,4 @@ The website keeps its own fast simulation of the contract. When the server has t
 ## Team
 
 - **Jeeshaan Bakshi**: product and smart contract
-- **Ashmit Bharti**: _role to be filled in_
+- **Ashmit Bharti**

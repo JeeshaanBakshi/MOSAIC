@@ -100,10 +100,7 @@ function ReviewPanel({ request, review }: { request: IssuerRequest; review: Revi
           {review.manualReview && <span className="ml-auto text-xs font-normal text-pine">Saved</span>}
         </summary>
         <div className="space-y-4 border-t border-line px-4 py-4">
-          <p className="max-w-xl text-sm leading-relaxed text-quiet">
-            Do your own checking: call the owner, look at the papers, visit the shop. Tick each check you verified yourself and write what you found.
-            A check that failed automatically can only be overruled this way.
-          </p>
+          <p className="text-sm text-quiet">Tick each check you verified yourself and write what you found. Only this can overrule a failed check.</p>
           <ul className="space-y-2">
             {checks.map((c) => (
               <li key={c.id}>

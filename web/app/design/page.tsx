@@ -52,10 +52,10 @@ export default function DesignPage() {
         <div className="space-y-8">
           <div><p className="t-label mb-3">Display · Space Grotesk Light</p><p className="t-display max-w-[18ch]">Make business history <span className="t-serif">count.</span></p></div>
           <div><p className="t-label mb-3">Headline</p><p className="t-headline max-w-[22ch]">Suppliers and payment apps vouch with money behind their word.</p></div>
-          <div><p className="t-label mb-3">Title</p><p className="t-title">The lender pays 1 USDC to check</p></div>
+          <div><p className="t-label mb-3">Title</p><p className="t-title">The lender pays 5 USDC to check</p></div>
           <div><p className="t-label mb-3">Lead · Inter</p><p className="t-lead">Lenders check that proof on Stellar and give those stores a loan. Missing evidence means unknown, never bad.</p></div>
           <div><p className="t-label mb-3">Label</p><p className="t-label !text-ink">Verification infrastructure for the next billion customers</p></div>
-          <div><p className="t-label mb-3">Numbers are tabular</p><p className="t-title t-num">₹22,500 · 0.70 USDC · 30 USDC · 6 of 6</p></div>
+          <div><p className="t-label mb-3">Numbers are tabular</p><p className="t-title t-num">₹22,500 · 2.50 USDC · 20 USDC · 6 of 6</p></div>
         </div>
       </Section>
 

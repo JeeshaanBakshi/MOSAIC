@@ -6,7 +6,7 @@ import { useState } from "react";
 import { backend, rs, type InvoiceView } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
 import { formatDate } from "@/lib/format";
-import { Button, Notice, Rows, Section, Skeleton, inputClass } from "@/components/ui";
+import { Button, Rows, Section, Skeleton, inputClass } from "@/components/ui";
 import { ClaimBadge, FreshnessBadge, MatchBadge, OFFCHAIN_NOTE, TrustBadge, moneyLine } from "@/components/EvidenceBits";
 import { errorToast } from "@/components/toast";
 import { toast } from "sonner";
@@ -28,7 +28,7 @@ export function ShopConfirmations({ shopId }: { shopId: string }) {
   const history = all.filter((v) => v.state !== "pending");
 
   return (
-    <Section title={`Pending transaction confirmations (${pending.length})`} aside="A supplier's claim counts for more once you confirm it.">
+    <Section title={`Pending transaction confirmations (${pending.length})`} aside="Your word makes a claim count">
       {invoices.loading && <Skeleton className="block h-24 w-full" />}
       {!invoices.loading && all.length === 0 && <p className="text-sm text-quiet">No supplier has submitted an invoice about your shop yet.</p>}
 
@@ -94,7 +94,7 @@ export function ShopConfirmations({ shopId }: { shopId: string }) {
         </div>
       )}
 
-      <div className="mt-6"><Notice>{OFFCHAIN_NOTE} In this demo you pick who you are from the role switcher, so this is not real log-in security. A real version asks the shopkeeper to log in with a phone code.</Notice></div>
+      <p className="mt-4 text-xs text-quiet">{OFFCHAIN_NOTE} Demo: you pick who you are, so this is not real log-in security.</p>
     </Section>
   );
 }

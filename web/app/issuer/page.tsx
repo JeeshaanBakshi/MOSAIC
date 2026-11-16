@@ -12,7 +12,9 @@ import { Badge, Button, EmptyState, Field, Notice, PageTitle, Panel, QueryError,
 import { Hash } from "@/components/Hash";
 import { ActivityLog } from "@/components/ActivityLog";
 import { ApplyToJoin } from "@/components/ApplyToJoin";
-import { IssuerEvidence } from "@/components/IssuerEvidence";
+import { PaymentRecords, SupplierInvoices } from "@/components/IssuerEvidence";
+import { SupplierProof } from "@/components/SupplierProof";
+import { TabPanel, Tabs } from "@/components/Tabs";
 import { errorToast, txToast } from "@/components/toast";
 
 const CLAIM_TYPES = [
@@ -43,6 +45,8 @@ export default function IssuerPage() {
     return lists.flat().filter((v) => v.credential.issuer === me);
   }, [me]);
 
+  type IssuerTab = "credentials" | "proof" | "invoices" | "payments" | "activity";
+  const [tab, setTab] = useState<IssuerTab>("credentials");
   const [shopId, setShopId] = useState("shop-1");
   const shopName = (id: string) => (shops.data ?? []).find((s) => s.id === id)?.name ?? id;
   const [claimType, setClaimType] = useState("buyer");
@@ -57,6 +61,13 @@ export default function IssuerPage() {
   const says = useQuery(() => backend.getSupplierSays(me, shopId), [me, shopId]);
   const feed = useQuery(() => backend.getPaymentFeed(me, shopId), [me, shopId]);
   const kind = registry.data?.kind;
+  const tabs: { id: IssuerTab; label: string }[] = [
+    { id: "credentials", label: "Credentials" },
+    ...(kind === "Supplier" ? [{ id: "proof" as const, label: "Proof" }, { id: "invoices" as const, label: "Invoices" }] : []),
+    ...(kind === "PaymentProvider" ? [{ id: "payments" as const, label: "Payments" }] : []),
+    ...(acct ? [{ id: "activity" as const, label: "Activity" }] : []),
+  ];
+  const active = tabs.some((t) => t.id === tab) ? tab : "credentials";
 
   const template = CLAIM_TYPES.find((c) => c.value === claimType)!.text(inr(amount || 0));
   const summary = edited ?? template;
@@ -104,7 +115,7 @@ export default function IssuerPage() {
   return (
     <div className="space-y-12">
       <PageTitle title="Vouch for a shop you trade with">
-        Each claim locks a {stake ? usdc(stake) : "30 USDC"} stake.
+        Each claim locks a {stake ? usdc(stake) : "20 USDC"} stake.
       </PageTitle>
 
       {!isIssuerRole && (
@@ -135,8 +146,11 @@ export default function IssuerPage() {
       {/* Not in the registry yet: the application flow (form, emailed code, sign, wait for the admin). */}
       {registry.data === null && isIssuerRole && <ApplyToJoin role={role as RoleId} />}
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
-        <div className="space-y-10 self-start">
+      <Tabs label="Issuer sections" active={active} onChange={setTab} tabs={tabs} />
+
+      <TabPanel id="credentials" active={active}>
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
+          <div className="space-y-6 self-start">
         <Panel className="space-y-6">
           <h2 className="text-lg font-medium tracking-tight">Issue a credential</h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -159,62 +173,23 @@ export default function IssuerPage() {
           </Field>
           <p className="flex gap-4 rounded-(--radius-control) bg-wash px-4 py-4 text-sm leading-relaxed text-quiet">
             <Lock className="mt-1 size-4 shrink-0 text-pine" aria-hidden />
-            <span>Signing locks <b className="font-medium text-ink">{stake ? usdc(stake) : "30 USDC"}</b> (a digital US dollar{stake ? `, about ${usdcCad(stake)}` : ""}) in the contract until this credential expires, after 90 days. You get it back unless a dispute against you is upheld.</span>
+            <span>Signing locks <b className="font-medium text-ink">{stake ? usdc(stake) : "20 USDC"}</b> (a digital US dollar{stake ? `, about ${usdcCad(stake)}` : ""}) in the contract until this credential expires, after 90 days. You get it back unless a dispute against you is upheld.</span>
           </p>
           <Button onClick={issue} disabled={busy !== null || !summary || !shopId} loading={busy === "issue"} className="w-full">
             {busy === "issue" ? "Signing…" : `Sign and issue, locking ${stake ? usdc(stake) : "the stake"}`}
           </Button>
         </Panel>
 
-        {kind === "PaymentProvider" ? (
-        <Panel className="space-y-6">
-          <h2 className="text-lg font-medium tracking-tight">Share payment records for {shopName(shopId)}</h2>
-          <p className="text-sm text-quiet">These are the numbers the checks use to judge supplier claims (and your own). Only claims backed by payment-app records earn fees.</p>
-          <Field label="Money in to the shop each month (₹)" hint="Everything that came in, including transfers back from payees.">
-            <div className="grid grid-cols-3 gap-4">
-              {MONTH_LABELS.map((m, i) => (
-                <label key={m} className="text-xs text-quiet">{m}
-                  <input className={`${inputClass} mt-1`} inputMode="numeric" value={receipts[i]} placeholder="0"
-                    onChange={(e) => setReceipts((prev) => prev.map((x, j) => (j === i ? digits(e.target.value) : x)))} />
-                </label>
-              ))}
-            </div>
-          </Field>
-          {payees.map((p, n) => (
-            <div key={n} className="space-y-4 rounded-(--radius-control) border border-line p-4">
-              <Field label={`Payee account ${n + 1}`} hint="The account the shop paid, e.g. a supplier's verified bank account.">
-                <input className={inputClass} value={p.account} placeholder="ICIC-0009012-11122233" onChange={(e) => setPayee(n, { account: e.target.value })} />
-              </Field>
-              {(["out", "back"] as const).map((field) => (
-                <Field key={field} label={field === "out" ? "Shop paid out each month (₹)" : "Came back from this account each month (₹)"}>
-                  <div className="grid grid-cols-3 gap-4">
-                    {MONTH_LABELS.map((m, i) => (
-                      <label key={m} className="text-xs text-quiet">{m}
-                        <input className={`${inputClass} mt-1`} inputMode="numeric" value={p[field][i]} placeholder="0" onChange={(e) => setCell(n, field, i, e.target.value)} />
-                      </label>
-                    ))}
-                  </div>
-                </Field>
-              ))}
-            </div>
-          ))}
-          <Button variant="secondary" onClick={() => setPayees((prev) => [...prev, { account: "", out: blank6(), back: blank6() }])} disabled={payees.length >= 10}>Add another payee account</Button>
-          {feed.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(feed.data.months.reduce((t, m) => t + m.receipts, 0) / 6))} a month in, on average.</p>}
-          <Button onClick={saveFeed} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !receipts.some((m) => Number(m) > 0)} loading={busy === "feed"} className="w-full">
-            {busy === "feed" ? "Saving…" : "Save payment records"}
-          </Button>
-        </Panel>
-        ) : (
-        <Panel className="space-y-5">
-          <h2 className="text-lg font-medium tracking-tight">How your claim is checked</h2>
-          <ol className="space-y-3 text-sm leading-relaxed">
-            <li className="flex gap-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-pine-soft text-xs font-medium text-pine-deep">1</span><span><b className="font-medium">You make a claim</b>, like &ldquo;{shopName(shopId)} buys ₹45,000 a month&rdquo;.</span></li>
-            <li className="flex gap-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-pine-soft text-xs font-medium text-pine-deep">2</span><span><b className="font-medium">A payment app shares its records</b> of what the shop actually paid your verified bank account, month by month.</span></li>
-            <li className="flex gap-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-pine-soft text-xs font-medium text-pine-deep">3</span><span><b className="font-medium">MOSAIC compares them.</b> The payments must reach 70% of your claim, after removing money you sent back within 30 days.</span></li>
+            {kind !== "PaymentProvider" && (
+        <details className="group self-start rounded-(--radius-panel) border border-line bg-surface p-5">
+          <summary className="cursor-pointer list-none text-sm font-medium">How your claim is checked</summary>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-quiet">
+            <li>You make a claim, like &ldquo;{shopName(shopId)} buys ₹45,000 a month&rdquo;.</li>
+            <li>A payment app shares what the shop paid your verified bank account.</li>
+            <li>The payments must reach 70% of your claim, after money you sent back is removed.</li>
           </ol>
-          <p className="rounded-(--radius-control) bg-wash px-4 py-3 text-sm text-quiet">So you can&apos;t pass by typing bigger numbers. Only the payment app&apos;s records count.</p>
-          <details className="group">
-            <summary className="cursor-pointer list-none text-sm font-medium text-pine underline underline-offset-4">Optional: add your own figures (shown to lenders as &ldquo;Supplier says&rdquo;, never used to pass)</summary>
+          <details className="mt-4">
+            <summary className="cursor-pointer list-none text-sm font-medium text-pine underline underline-offset-4">Optional: add your own figures (shown as &ldquo;Supplier says&rdquo;, never used to pass)</summary>
             <div className="mt-4 space-y-4">
               <Field label="What you say the shop bought each month (₹)">
                 <div className="grid grid-cols-3 gap-4">
@@ -235,15 +210,15 @@ export default function IssuerPage() {
               </Button>
             </div>
           </details>
-        </Panel>
-        )}
-        </div>
+        </details>
+            )}
+          </div>
 
         <Section title="Your credentials" className="self-start">
           {mine.error && <QueryError what="your credentials" onRetry={mine.retry} />}
           {!mine.error && !mine.loading && (mine.data ?? []).length === 0 && (
             <EmptyState title="No credentials yet">
-              Fill in the form to vouch for your first shop. Each credential locks {stake ? usdc(stake) : "a stake"} until it expires.
+              Use the form to vouch for a shop.
             </EmptyState>
           )}
           <div className="space-y-4">
@@ -282,11 +257,58 @@ export default function IssuerPage() {
             })}
           </div>
         </Section>
-      </div>
+        </div>
+      </TabPanel>
 
-      {isIssuerRole && registry.data && <IssuerEvidence me={me} kind={registry.data.kind} credentials={mine.data ?? []} />}
-
-      {acct && <ActivityLog caller={acct.name} title="Your transactions" />}
+      {kind === "PaymentProvider" && (
+        <TabPanel id="payments" active={active}>
+<Panel className="space-y-6">
+          <h2 className="text-lg font-medium tracking-tight">Share payment records for {shopName(shopId)}</h2>
+          <p className="text-sm text-quiet">The numbers the checks use. Only payment-app records count.</p>
+          <Field label="Money in to the shop each month (₹)" hint="Everything that came in, including transfers back from payees.">
+            <div className="grid grid-cols-3 gap-4">
+              {MONTH_LABELS.map((m, i) => (
+                <label key={m} className="text-xs text-quiet">{m}
+                  <input className={`${inputClass} mt-1`} inputMode="numeric" value={receipts[i]} placeholder="0"
+                    onChange={(e) => setReceipts((prev) => prev.map((x, j) => (j === i ? digits(e.target.value) : x)))} />
+                </label>
+              ))}
+            </div>
+          </Field>
+          {payees.map((p, n) => (
+            <div key={n} className="space-y-4 rounded-(--radius-control) border border-line p-4">
+              <Field label={`Payee account ${n + 1}`} hint="The account the shop paid, e.g. a supplier's verified bank account.">
+                <input className={inputClass} value={p.account} placeholder="ICIC-0009012-11122233" onChange={(e) => setPayee(n, { account: e.target.value })} />
+              </Field>
+              {(["out", "back"] as const).map((field) => (
+                <Field key={field} label={field === "out" ? "Shop paid out each month (₹)" : "Came back from this account each month (₹)"}>
+                  <div className="grid grid-cols-3 gap-4">
+                    {MONTH_LABELS.map((m, i) => (
+                      <label key={m} className="text-xs text-quiet">{m}
+                        <input className={`${inputClass} mt-1`} inputMode="numeric" value={p[field][i]} placeholder="0" onChange={(e) => setCell(n, field, i, e.target.value)} />
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              ))}
+            </div>
+          ))}
+          <Button variant="secondary" onClick={() => setPayees((prev) => [...prev, { account: "", out: blank6(), back: blank6() }])} disabled={payees.length >= 10}>Add another payee account</Button>
+          {feed.data && <p className="text-sm text-quiet">Saved: {inr(Math.round(feed.data.months.reduce((t, m) => t + m.receipts, 0) / 6))} a month in, on average.</p>}
+          <Button onClick={saveFeed} disabled={busy !== null || !shopId || !isIssuerRole || !registry.data || !receipts.some((m) => Number(m) > 0)} loading={busy === "feed"} className="w-full">
+            {busy === "feed" ? "Saving…" : "Save payment records"}
+          </Button>
+        </Panel>
+          {registry.data && <PaymentRecords me={me} />}
+        </TabPanel>
+      )}
+      {kind === "Supplier" && (
+        <>
+          <TabPanel id="proof" active={active}><SupplierProof me={me} credentials={mine.data ?? []} /></TabPanel>
+          <TabPanel id="invoices" active={active}><SupplierInvoices me={me} credentials={mine.data ?? []} /></TabPanel>
+        </>
+      )}
+      {acct && <TabPanel id="activity" active={active}><ActivityLog caller={acct.name} title="Your transactions" /></TabPanel>}
     </div>
   );
 }

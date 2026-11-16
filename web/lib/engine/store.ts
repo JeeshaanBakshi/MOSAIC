@@ -24,7 +24,7 @@ export interface ActivityItem {
   fn: string; // contract function name, e.g. "issue_credential"
   caller: string; // who signed it
   summary: string;
-  effects: string[]; // what moved, e.g. "30 USDC: Gupta Wholesale → MOSAIC contract"
+  effects: string[]; // what moved, e.g. "20 USDC: Gupta Wholesale → MOSAIC contract"
   onchain?: boolean; // true = `hash` is a real Stellar testnet transaction; otherwise it is simulated
   time: number;
 }
@@ -242,7 +242,7 @@ export interface State {
   version: number; // bumps on every change so every browser knows to re-read
 }
 
-const SCHEMA = 11; // bump when State changes shape, so old saved data is thrown away
+const SCHEMA = 12; // bump when State changes shape OR the default settings change (fee, share, stake), so old saved data is thrown away
 
 /** The fake clock starts on 11 Nov 2026. Fixed, so the demo looks the same every time. */
 export const START_TIME = Date.UTC(2026, 10, 11, 9, 0, 0) / 1000;
@@ -250,9 +250,9 @@ export const START_TIME = Date.UTC(2026, 10, 11, 9, 0, 0) / 1000;
 export const DEFAULT_CONFIG: Config = {
   admin: ACCOUNTS.admin.address,
   usdc: USDC_ADDRESS,
-  verifyFee: 1 * USDC_UNIT, // 1 USDC
-  issuerShareBps: 7000, // 70%
-  stakeAmount: 30 * USDC_UNIT, // 30 USDC
+  verifyFee: 5 * USDC_UNIT, // 5 USDC per lender check
+  issuerShareBps: 5000, // 50%: 2.5 USDC to the issuers whose claims passed, 2.5 USDC to the platform
+  stakeAmount: 20 * USDC_UNIT, // 20 USDC locked per credential
 };
 
 /** A brand new world: contract set up (init already done), everyone holding some test USDC, nothing else. */
@@ -282,7 +282,7 @@ export function freshState(): State {
         hash: fakeHash("1:init"),
         fn: "init",
         caller: nameOf(ACCOUNTS.admin.address),
-        summary: "Contract set up: fee 1 USDC, issuers get 70%, stake 30 USDC",
+        summary: "Contract set up: fee 5 USDC, issuers get 50%, stake 20 USDC",
         effects: [],
         time: START_TIME,
       },

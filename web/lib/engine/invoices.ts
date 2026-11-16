@@ -422,8 +422,8 @@ export async function getVerificationReport(shopId: string): Promise<Verificatio
   return {
     shopId, shopName: SHOPS[shopId]?.name ?? shopId, credentials: out, generatedAt: s.now,
     provenance: {
-      onChain: ["The supplier's credential, its stake, and any dispute or revocation (the Soroban contract on Stellar testnet)."],
-      offChain: ["Invoice claims, the shop's confirmations, payment records, matching results, freshness and reliability. These are calculated by the MOSAIC backend. Only the credential's fingerprint is on-chain."],
+      onChain: ["Credentials, stakes and disputes (the Stellar contract)."],
+      offChain: ["Invoices, confirmations, payments, matching and bills (the MOSAIC backend)."],
     },
   };
 }

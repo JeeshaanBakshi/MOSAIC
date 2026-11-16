@@ -32,7 +32,7 @@ const rule = (d: any, id: string) => d.rules.find((r: any) => r.id === id);
     const fake = await b.getChecks("shop-3");
     ok("one credential, from QuickSupply", fake.length === 1 && fake[0].issuerName === "QuickSupply");
     const fakeView = (await c.getCredentials("shop-3"))[0];
-    ok("the page matches the chain: that credential is revoked and its 30 USDC stake was slashed", fakeView.status === "Revoked" && fakeView.credential.stake === 0);
+    ok("the page matches the chain: that credential is revoked and its 20 USDC stake was slashed", fakeView.status === "Revoked" && fakeView.credential.stake === 0);
     ok("QuickSupply has 1 strike from it", (await c.getIssuer(A.quick.address))!.upheldClaims === 1);
     ok("payment match and net flow are UNKNOWN (no payment-app records), not failed", fake[0].checks[0].result === "unknown" && fake[0].checks[2].result === "unknown" && fake[0].overall === "unknown", fake[0].checks.map((x) => x.result).join(","));
     const fd = await b.getLoanDecision("shop-3", 100000, 6);

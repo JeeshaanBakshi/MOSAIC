@@ -7,7 +7,7 @@ import { ExternalLink, Wallet } from "lucide-react";
 import { contract } from "@/lib/mock";
 import { useChainMode } from "@/lib/useChainMode";
 import { useQuery } from "@/lib/hooks";
-import { CONTRACT_ID, contractUrl, short, txUrl } from "@/lib/format";
+import { CONTRACT_ID, DEPLOYED_SETTINGS, contractUrl, short, txUrl, usdc } from "@/lib/format";
 import { Badge, Button, Panel } from "@/components/ui";
 
 const TESTNET_PASSPHRASE = "Test SDF Network ; September 2015";
@@ -65,6 +65,7 @@ function WalletConnect() {
 export function OnChainPanel() {
   const mode = useChainMode();
   const { data } = useQuery(() => contract.listActivity());
+  const cfg = useQuery(() => contract.getConfig()).data;
   const real = (data ?? []).filter((a) => a.onchain).slice(0, 8);
   return (
     <Panel className="space-y-6" id="onchain">
@@ -75,14 +76,19 @@ export function OnChainPanel() {
       </div>
       <p className="max-w-2xl text-sm leading-relaxed text-quiet">
         {mode === "live"
-          ? "Each check, dispute and slash on this site is also sent to the real MOSAIC contract on Stellar testnet. Every one shows a link you can open on Stellar Expert."
-          : "The contract below is real and deployed on Stellar testnet. In this demo mode the site runs the same rules without sending transactions, so nothing here is on-chain yet. Real transactions are listed in the README."}
+          ? "Each check and dispute here is also sent to the real contract on Stellar testnet."
+          : "The contract is real, on Stellar testnet. Demo mode runs the same rules without sending transactions."}
       </p>
       <dl className="grid gap-4 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-8">
         <dt className="text-quiet">Contract</dt>
         <dd className="min-w-0"><a href={contractUrl} target="_blank" rel="noopener noreferrer" className="break-all font-mono text-xs text-pine underline underline-offset-4">{CONTRACT_ID}<ExternalLink className="ml-1 inline size-3" aria-hidden /><span className="sr-only"> on Stellar Expert</span></a></dd>
         <dt className="text-quiet">Network</dt>
         <dd>Stellar testnet, test USDC only</dd>
+        <dt className="text-quiet">Settings</dt>
+        <dd>
+          Website rules: {cfg ? `${usdc(cfg.verifyFee)} fee, ${cfg.issuerShareBps / 100}% to the issuers, ${usdc(cfg.stakeAmount)} stake` : "..."}.
+          <span className="block text-xs text-quiet">The deployed contract was set up with {DEPLOYED_SETTINGS}. These are fixed at deploy, so real transactions use them until a new contract is deployed.</span>
+        </dd>
       </dl>
       <div>
         <h3 className="text-sm font-medium">Real transactions this session ({real.length})</h3>
@@ -102,7 +108,7 @@ export function OnChainPanel() {
           </ul>
         )}
       </div>
-      <p className="text-sm"><a href="/chain" className="font-medium text-pine underline underline-offset-4">Open the testnet inspector</a> <span className="text-quiet">to see everything the contract holds and every transaction, read live from the chain.</span></p>
+      <p className="text-sm"><a href="/chain" className="font-medium text-pine underline underline-offset-4">Open the testnet inspector</a></p>
       <WalletConnect />
     </Panel>
   );

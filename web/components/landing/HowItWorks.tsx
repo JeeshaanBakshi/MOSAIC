@@ -4,10 +4,10 @@ import { Lock } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 
 const STEPS = [
-  ["An issuer vouches", "A supplier or payment app signs a one-line claim about a shop and locks a 30 USDC stake behind it."],
+  ["An issuer vouches", "A supplier or payment app signs a one-line claim about a shop and locks a 20 USDC stake behind it."],
   ["The claim meets the receipts", "Payment-app records must back it up: 70% match, minus money that came straight back. The issuer's own numbers never pass."],
   ["The shop asks for a loan", "The shop pays nothing and never touches crypto."],
-  ["The lender pays 1 USDC to check", "The contract splits the fee: 70% to the issuers whose claims passed, 30% to the platform."],
+  ["The lender pays 5 USDC to check", "The fee is split: half to the issuers whose claims passed, half to the platform."],
   ["A false claim costs money", "After a default, an upheld dispute pays the stake to the lender. Two upheld disputes suspend the issuer."],
 ];
 
@@ -16,7 +16,7 @@ function Diagram({ i }: { i: number }) {
     <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-3"><span className="text-quiet">Gupta Wholesale · supplier</span><span className="stamp stamp-ok">Approved issuer</span></div>
       <p className="t-title !text-lg">&ldquo;Sharma Store buys ₹45,000 a month, pays on time.&rdquo;</p>
-      <p className="flex items-center gap-2 text-pine"><Lock className="size-4" aria-hidden />30 USDC locked behind this claim</p>
+      <p className="flex items-center gap-2 text-pine"><Lock className="size-4" aria-hidden />20 USDC locked behind this claim</p>
     </div>
   );
   if (i === 1) return (
@@ -41,13 +41,13 @@ function Diagram({ i }: { i: number }) {
   );
   if (i === 3) return (
     <div className="t-num space-y-3 text-sm">
-      <div className="flex h-8 w-full overflow-hidden"><div data-grow className="flex-[7] bg-pine" /><div data-grow="0.2" className="flex-[3] bg-quiet/50" /></div>
-      <div className="flex justify-between"><span><b className="font-medium">0.70 USDC</b> to the issuers whose claims passed</span><span className="text-quiet">0.30 platform</span></div>
+      <div className="flex h-8 w-full overflow-hidden"><div data-grow className="flex-[5] bg-pine" /><div data-grow="0.2" className="flex-[5] bg-quiet/50" /></div>
+      <div className="flex justify-between"><span><b className="font-medium">2.50 USDC</b> to the issuers whose claims passed</span><span className="text-quiet">2.50 platform</span></div>
     </div>
   );
   return (
     <div className="space-y-3 text-sm">
-      <p className="t-num flex items-center gap-3"><span className="stamp stamp-bad">Dispute upheld</span>30 USDC stake paid to the lender</p>
+      <p className="t-num flex items-center gap-3"><span className="stamp stamp-bad">Dispute upheld</span>20 USDC stake paid to the lender</p>
       <p className="flex items-center gap-2 text-quiet" aria-label="Two upheld disputes suspend the issuer"><span className="size-2.5 rounded-full bg-clay" /><span className="size-2.5 rounded-full bg-clay" />two strikes: issuer suspended</p>
     </div>
   );

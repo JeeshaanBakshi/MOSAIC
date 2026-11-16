@@ -2,7 +2,7 @@
 // Testnet is marked everywhere: nothing here is production.
 import { ExternalLink } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
-import { CONTRACT_ID, contractUrl, short, txUrl } from "@/lib/format";
+import { CONTRACT_ID, DEPLOYED_SETTINGS, contractUrl, short, txUrl } from "@/lib/format";
 
 // Real transactions on the testnet contract (the same ones listed in the README, "Verified on testnet").
 const PROOF = [
@@ -15,8 +15,8 @@ const PROOF = [
 
 const FACTS = [
   ["Issuer registry", "Only issuers the admin approved can sign a claim."],
-  ["Stake locking", "30 USDC is locked per claim and returned after it expires."],
-  ["Lender fee split", "1 USDC per check: 70% to the issuers whose claims passed, 30% to the platform."],
+  ["Stake locking", "A stake is locked per claim and returned after it expires."],
+  ["Lender fee split", "Each check's fee is split between the issuers whose claims passed and the platform."],
   ["Dispute settlement", "After a default, an upheld dispute pays the stake to the lender. Two strikes suspend an issuer."],
 ];
 
@@ -42,7 +42,7 @@ export function StellarChapter() {
             <p className="t-label !text-bone-quiet">0{i + 1}</p>
             <p className="t-title mt-3">{t}</p>
             <p className="mt-2 text-bone-quiet">{b}</p>
-            {i === 2 && <div className="mt-4 flex h-2 overflow-hidden"><div data-grow className="flex-[7] bg-bone-text" /><div data-grow="0.2" className="flex-[3] bg-bone-text/30" /></div>}
+            {i === 2 && <div className="mt-4 flex h-2 overflow-hidden"><div data-grow className="flex-[5] bg-bone-text" /><div data-grow="0.2" className="flex-[5] bg-bone-text/30" /></div>}
             {i === 1 && <div className="mt-4 h-2 bg-bone-line"><div data-grow className="h-full w-full bg-bone-text" /></div>}
           </div>
         ))}
@@ -56,7 +56,7 @@ export function StellarChapter() {
           </li>
         ))}
       </ul>
-      <p className="mt-6 text-sm text-bone-quiet">Testnet only: test USDC with no value. There is no mainnet deployment yet.</p>
+      <p className="mt-6 text-sm text-bone-quiet">These five come from the first testnet deployment ({DEPLOYED_SETTINGS}). Testnet only: test USDC with no value. There is no mainnet deployment yet.</p>
     </section>
   );
 }

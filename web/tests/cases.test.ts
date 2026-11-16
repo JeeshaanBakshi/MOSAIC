@@ -57,10 +57,10 @@ const cred = async (issuer: string, shop = "shop-1") => (await c.getCredentials(
     await rejects("the admin must leave a note", "InvalidInput", () => b.decideCase(A.admin.address, first.file.id, "approve", " "));
     await rejects("the decision must be approve or dismiss", "InvalidInput", () => b.decideCase(A.admin.address, first.file.id, "maybe" as never, "note"));
     const platformBefore = await c.getBalance(A.admin.address), quickCred = await cred(A.quick.address);
-    ok("QuickSupply's credential has its 30 USDC locked", quickCred.stake === 30 * USDC && !quickCred.revoked);
+    ok("QuickSupply's credential has its 20 USDC locked", quickCred.stake === 20 * USDC && !quickCred.revoked);
     const out = await b.decideCase(A.admin.address, first.file.id, "approve", "Confirmed by the delivery records.");
-    ok("approving deducted the 30 USDC stake and gave warning 1 of 3", out.stakeDeducted === 30 * USDC && out.warnings === 1 && !out.removed);
-    ok("the stake moved to the platform", (await c.getBalance(A.admin.address)) === platformBefore + 30 * USDC);
+    ok("approving deducted the 20 USDC stake and gave warning 1 of 3", out.stakeDeducted === 20 * USDC && out.warnings === 1 && !out.removed);
+    ok("the stake moved to the platform", (await c.getBalance(A.admin.address)) === platformBefore + 20 * USDC);
     const after = await cred(A.quick.address);
     ok("the credential is revoked and holds no stake", after.revoked && after.stake === 0);
     ok("the case is approved, with the ruling and its note kept", (await b.getCases({ status: "approved" }))[0].file.decision?.note.includes("delivery records") === true);
@@ -71,7 +71,7 @@ const cred = async (issuer: string, shop = "shop-1") => (await c.getCredentials(
     console.log("-- a lender's case: the lender receives the stake");
     const lenderBefore = await c.getBalance(A.asha.address);
     await b.decideCase(A.admin.address, lenderCase, "approve", "Shares the shop's phone and bank account.");
-    ok("the deducted stake went to the lender who rejected the claim", (await c.getBalance(A.asha.address)) === lenderBefore + 30 * USDC);
+    ok("the deducted stake went to the lender who rejected the claim", (await c.getBalance(A.asha.address)) === lenderBefore + 20 * USDC);
 
     console.log("-- the admin dismisses: no penalty");
     const gupta = await cred(A.gupta.address);
@@ -79,7 +79,7 @@ const cred = async (issuer: string, shop = "shop-1") => (await c.getCredentials(
     const warnBefore = (await b.getIssuerWarnings(A.gupta.address)).warnings, balBefore = await c.getBalance(A.asha.address);
     const d = await b.decideCase(A.admin.address, dismissCase, "dismiss", "The records match the claim.");
     ok("dismissing deducts nothing and gives no warning", d.stakeDeducted === 0 && d.warnings === warnBefore && (await c.getBalance(A.asha.address)) === balBefore);
-    ok("the credential keeps its stake and stays verified", (await cred(A.gupta.address)).stake === 30 * USDC && (await b.getChecks("shop-1")).find((e) => e.issuerName === "Gupta Wholesale")!.overall === "verified");
+    ok("the credential keeps its stake and stays verified", (await cred(A.gupta.address)).stake === 20 * USDC && (await b.getChecks("shop-1")).find((e) => e.issuerName === "Gupta Wholesale")!.overall === "verified");
 
     console.log("-- a dismissed shop rejection no longer holds the credential back");
     const inv = await b.submitInvoice(A.gupta.address, "shop-1", gupta.id, { ref: "INV-GW-3000", amountInr: 10000, date: "2026-11-08", category: "Staples", description: "", evidenceRef: "", validDays: 30 });

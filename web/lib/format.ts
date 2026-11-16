@@ -26,6 +26,8 @@ const round = (n: number) => (n >= 100 ? Math.round(n / 5) * 5 : Math.round(n));
 /** About how many Canadian dollars an amount in rupees is, e.g. 20000 -> "CA$330". */
 export const cad = (inr: number) => `CA$${round(inr * CAD_PER_INR).toLocaleString("en-CA")}`;
 /** USDC is a digital US dollar. 30 USDC -> "CA$41". */
+/** What the contract ALREADY DEPLOYED on testnet was set up with (fixed at deploy time, so it cannot be edited). The website's own rules can differ. */
+export const DEPLOYED_SETTINGS = "1 USDC fee, 70% to the issuers, 30 USDC stake";
 export const usdcCad = (stroops: number) => {
   const n = (stroops / USDC_UNIT) * CAD_PER_USD;
   return `CA$${n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString("en-CA")}`;

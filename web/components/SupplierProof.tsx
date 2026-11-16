@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { backend, EVIDENCE_MONTHS, MONTH_LABEL, noteVersion, type CredentialView } from "@/lib/mock";
 import { useQuery } from "@/lib/hooks";
-import { Badge, Button, Field, Notice, Panel, Section, Skeleton, inputClass } from "@/components/ui";
+import { Badge, Button, Field, Panel, Section, Skeleton, inputClass } from "@/components/ui";
 import { ProofBadge, ProofLines, ProofMonths } from "@/components/ProofBits";
 import { errorToast } from "@/components/toast";
 import { toast } from "sonner";
@@ -74,14 +74,14 @@ export function SupplierProof({ me, credentials }: { me: string; credentials: Cr
             </div>
 
             <Panel className="space-y-6">
-              <p className="text-sm text-quiet">Upload one PDF per month: that month&apos;s bills to this shop (a statement or the bills combined). Enter the total they add up to and the customer name printed on them. A corrected upload replaces the old one for that month. PDFs up to {MAX_KB} KB.</p>
+              <p className="text-sm text-quiet">One PDF per month (up to {MAX_KB} KB) with the total billed and the name on the bills. A new upload replaces the old one.</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Month"><select className={inputClass} value={month} onChange={(e) => setMonth(e.target.value)}>{EVIDENCE_MONTHS.map((m) => <option key={m} value={m}>{MONTH_LABEL[m]}{p.statements.some((s) => s.month === m && s.current) ? " (uploaded)" : ""}</option>)}</select></Field>
                 <Field label="Total billed that month (₹)"><input className={inputClass} inputMode="numeric" value={billed} onChange={(e) => setBilled(digits(e.target.value))} placeholder="45500" /></Field>
                 <Field label="How many bills"><input className={inputClass} inputMode="numeric" value={count} onChange={(e) => setCount(digits(e.target.value))} placeholder="4" /></Field>
                 <Field label="Customer name on the bills"><input className={inputClass} value={name ?? shopName(shopId)} onChange={(e) => setName(e.target.value)} /></Field>
               </div>
-              <Field label="The bill (PDF)" hint={tooBig ? `That file is ${Math.round(file!.size / 1000)} KB. The limit is ${MAX_KB} KB: send a text PDF, not a photo.` : "Your own file stays as you made it. MOSAIC stores it and a fingerprint of it, so a reused file is caught."}>
+              <Field label="The bill (PDF)" hint={tooBig ? `That file is ${Math.round(file!.size / 1000)} KB. The limit is ${MAX_KB} KB: send a text PDF, not a photo.` : "Stored with a fingerprint, so a reused file is caught."}>
                 <input key={fileKey} type="file" accept="application/pdf,.pdf" className={inputClass} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </Field>
               <Button onClick={upload} loading={busy === "upload"} disabled={busy !== null || !file || tooBig || !Number(billed) || !Number(count) || !(name ?? shopName(shopId)).trim()} className="w-full">Upload the {MONTH_LABEL[month]} bill</Button>
@@ -96,7 +96,7 @@ export function SupplierProof({ me, credentials }: { me: string; credentials: Cr
               <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">The seven checks on your proof</summary>
               <div className="mt-2"><ProofLines lines={p.lines} /></div>
             </details>
-            <Notice>MOSAIC does not read the text inside your PDF yet (that needs document parsing). It stores the file, fingerprints it, and checks the numbers you enter against the payment records. The PDFs and these checks are kept off-chain.</Notice>
+            <p className="text-xs text-quiet">PDF text is not read yet. The file is stored and fingerprinted, and your totals are checked against payments.</p>
           </>
         )}
       </div>

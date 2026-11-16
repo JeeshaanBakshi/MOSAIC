@@ -22,6 +22,7 @@ import { errorToast, txToast } from "@/components/toast";
 import { TxRef } from "@/components/TxRef";
 import { OnChainPanel } from "@/components/OnChainPanel";
 import { VerificationReport } from "@/components/VerificationReport";
+import { TabPanel, Tabs } from "@/components/Tabs";
 import { toast } from "sonner";
 
 const STACKING_ALERT = 3; // 3 or more lender checks in 30 days: the shop may be borrowing from several lenders at once
@@ -44,6 +45,7 @@ export function LenderView() {
   const [loanId, setLoanId] = useState<number | null>(null);
   const [amount, setAmount] = useState<number | null>(null); // what to approve (null = use the suggestion)
   const [note, setNote] = useState("");
+  const [evTab, setEvTab] = useState<"report" | "checks" | "fees">("report");
   const [busy, setBusy] = useState<string | null>(null);
 
   const config = useQuery(() => contract.getConfig());
@@ -66,6 +68,7 @@ export function LenderView() {
   const approveAmount = amount ?? suggested;
 
   const fee = config.data?.verifyFee;
+  const share = config.data ? config.data.issuerShareBps / 100 : 50; // the issuers' share of the fee, in percent
   const shopName = (id: string) => (shops.data ?? []).find((s) => s.id === id)?.name ?? id;
   const items = evidence.data ?? [];
   // Count voices, not paperwork: several credentials from the same issuer are still one issuer.
@@ -88,7 +91,8 @@ export function LenderView() {
     await backend.syncChecks(id); // make sure the contract knows which claims passed
     const { result, hash, onchain } = await contract.verify(me, id);
     setVerified({ shopId: id, payouts: result.payouts, hash, onchain: !!onchain });
-    txToast(`Checked ${shopName(id)}. Paid ${fee ? usdc(fee) : "the fee"}.`, hash, onchain);
+    const paidNow = onchain ? result.payouts.reduce((t, p) => t + p.amount, 0) : fee; // a real check shows what the chain moved
+    txToast(`Checked ${shopName(id)}. Paid ${paidNow ? usdc(paidNow) : "the fee"}.`, hash, onchain);
   });
 
   const pick = (id: number, shop: string) => {
@@ -120,7 +124,7 @@ export function LenderView() {
   return (
     <div className="space-y-12">
       <PageTitle title="Loan requests from shops">
-        Pay {fee ? usdc(fee) : "1 USDC"} to check a shop. Most of the fee goes to the issuers who vouched for it.
+        Pay {fee ? usdc(fee) : "5 USDC"} to check a shop. {share}% of the fee goes to the issuers who vouched for it.
       </PageTitle>
 
       {PERSONAS[role].kind !== "lender" && (
@@ -156,9 +160,9 @@ export function LenderView() {
           </div>
           {!checked ? (
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-quiet">Pay {fee ? usdc(fee) : "1 USDC"} to see the evidence and the recommendation.</p>
+              <p className="text-sm text-quiet">Pay {fee ? usdc(fee) : "5 USDC"} to see the evidence and the recommendation.</p>
               <Button onClick={() => verifyShop(loan.shopId)} disabled={busy !== null || !me} loading={busy === "verify"}>
-                {busy === "verify" ? "Paying and checking…" : `Check the shop (${fee ? usdc(fee) : "1 USDC"})`}
+                {busy === "verify" ? "Paying and checking…" : `Check the shop (${fee ? usdc(fee) : "5 USDC"})`}
               </Button>
             </div>
           ) : decision.error ? (
@@ -167,7 +171,7 @@ export function LenderView() {
             <div className="space-y-4" aria-busy="true"><Skeleton className="block h-8 w-2/3" /><Skeleton className="block h-4 w-1/2" /><Skeleton className="block h-32 w-full" /></div>
           ) : (
             <>
-              <VerdictCard decision={decision.data} passed={passedRules.length} total={decision.data.rules.length} paid={fee} verified={verified} />
+              <VerdictCard decision={decision.data} passed={passedRules.length} total={decision.data.rules.length} paid={verified?.onchain ? verified.payouts.reduce((t, p) => t + p.amount, 0) : fee} verified={verified} />
 
               {stackingRule?.result === "fail" && <Notice tone="warn"><b className="font-medium">Possible loan stacking.</b> {stackingRule.reason}</Notice>}
 
@@ -234,7 +238,7 @@ export function LenderView() {
             </Field>
           </div>
           <Button onClick={() => verifyShop(shopId)} disabled={busy !== null || !shopId || !me} loading={busy === "verify"} className="sm:w-56">
-            {busy === "verify" ? "Paying and checking…" : `Verify (${fee ? usdc(fee) : "1 USDC"})`}
+            {busy === "verify" ? "Paying and checking…" : `Verify (${fee ? usdc(fee) : "5 USDC"})`}
           </Button>
         </div>
       </details>
@@ -247,20 +251,46 @@ export function LenderView() {
           <div className="grid gap-6 sm:grid-cols-2">
             <Stat label="Distinct issuers" value={`${verifiedCount} of ${issuerCount} verified`} hint="Several credentials from one issuer count once." />
             <div>
-              <Stat label="Lender checks, last 30 days" value={stacking.data === undefined ? <Skeleton /> : String(stacking.data)} hint="Many at once can mean the shop is borrowing from several lenders." />
+              <Stat label="Lender checks, last 30 days" value={stacking.data === undefined ? <Skeleton /> : String(stacking.data)} hint="Counts checks, not distinct lenders." />
               <div className="mt-2">{(stacking.data ?? 0) >= STACKING_ALERT ? <Badge state="fail">Possible loan stacking</Badge> : <Badge state="pass">Normal</Badge>}</div>
             </div>
           </div>
 
+          <Tabs label="Evidence sections" active={evTab} onChange={setEvTab} tabs={[
+            { id: "report", label: "Report" },
+            { id: "checks", label: "Six checks", count: items.length },
+            { id: "fees", label: "Fee and default" },
+          ]} />
+
+          <TabPanel id="report" active={evTab}>
+          {evidence.error && <QueryError what="the evidence" onRetry={evidence.retry} />}
+          {!evidence.error && !evidence.loading && items.length === 0 && (
+            <EmptyState title={`No credentials for ${shopName(verified.shopId)}`}>No evidence yet. Unknown, not bad.</EmptyState>
+          )}
+
+          <VerificationReport shopId={verified.shopId} />
+          </TabPanel>
+
+          <TabPanel id="checks" active={evTab}>
+          <div className="space-y-6">
+            {items.map((e) => {
+              const id = e.view.credential.id;
+              const d = (disputes.data ?? []).find((x) => x.credentialId === id);
+              return <CredentialBlock key={id} item={e} dispute={d} busy={busy === `dispute-${id}`} anyBusy={busy !== null} onDispute={() => dispute(id)} flagBusy={busy === `flag-${id}`} onFlag={(reason) => flag(id, reason)} />;
+            })}
+          </div>
+          </TabPanel>
+
+          <TabPanel id="fees" active={evTab}>
           <div className="flex flex-col gap-3 rounded-(--radius-panel) border border-line p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-quiet">A dispute can only be upheld after the shop defaults. If this shop did not repay a loan from you, report it here.</p>
+            <p className="text-sm text-quiet">Disputes can be upheld only after a reported default.</p>
             <Button variant="secondary" disabled={busy !== null || !me} loading={busy === "default"}
               onClick={() => run("default", async () => { const { hash, onchain } = await contract.reportDefault(me, verified.shopId); txToast(`${verified.shopId} reported as defaulted`, hash, onchain); })}>
               Report a default
             </Button>
           </div>
 
-          <details className="group">
+          <details className="group" open>
             <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-medium">
               <ChevronDown className="size-4 text-quiet transition-transform group-open:rotate-180" aria-hidden />Where your fee went
             </summary>
@@ -272,29 +302,18 @@ export function LenderView() {
                 </div>
               ))}
             </Rows>
-            <p className="mt-2 text-sm text-quiet">70% goes to issuers whose claims passed the checks.{verified.onchain ? " These amounts were read from the real transaction." : ""}</p>
+            <p className="mt-2 text-sm text-quiet">{share}% goes to issuers whose claims passed the checks.{verified.onchain ? " These amounts were read from the real transaction." : ""}</p>
             <p className="mt-2 text-xs text-quiet"><TxRef hash={verified.hash} onchain={verified.onchain} /></p>
           </details>
 
-          {evidence.error && <QueryError what="the evidence" onRetry={evidence.retry} />}
-          {!evidence.error && !evidence.loading && items.length === 0 && (
-            <EmptyState title={`No credentials for ${shopName(verified.shopId)}`}>That means unknown, not bad: this shop has no evidence yet. Ask its supplier or payment app to vouch.</EmptyState>
-          )}
-
-          <VerificationReport shopId={verified.shopId} />
-
-          <h3 className="text-lg font-medium tracking-tight">The six fraud checks, per credential</h3>
-          <div className="space-y-6">
-            {items.map((e) => {
-              const id = e.view.credential.id;
-              const d = (disputes.data ?? []).find((x) => x.credentialId === id);
-              return <CredentialBlock key={id} item={e} dispute={d} busy={busy === `dispute-${id}`} anyBusy={busy !== null} onDispute={() => dispute(id)} flagBusy={busy === `flag-${id}`} onFlag={(reason) => flag(id, reason)} />;
-            })}
-          </div>
+          </TabPanel>
         </section>
       )}
 
-      <OnChainPanel />
+      <details className="group border-t border-line pt-6">
+        <summary className="cursor-pointer list-none text-lg font-medium tracking-tight">On-chain</summary>
+        <div className="mt-4"><OnChainPanel /></div>
+      </details>
     </div>
   );
 }
@@ -319,6 +338,7 @@ function VerdictCard({ decision, passed, total, paid, verified }: {
       </div>
       <p className="text-3xl font-medium leading-tight tracking-tight">{headline}</p>
       <p className="max-w-2xl text-base leading-relaxed text-quiet">{sub}</p>
+      <p className="text-xs text-faint">Example lender policy, not a validated lending model. The evidence below is what counts.</p>
       {verified && (
         <div className="border-t border-ink/10 pt-4 text-sm text-quiet">
           <p>
@@ -393,7 +413,7 @@ function CredentialBlock({ item, dispute, busy, anyBusy, onDispute, flagBusy, on
             <label className="block text-sm font-medium">What is wrong with this claim?
               <textarea className={`${inputClass} mt-2`} rows={2} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="For example, the amount does not match the shop's real purchases." />
             </label>
-            <p className="text-xs text-quiet">The admin gets a case file (a PDF) and decides. If approved, the supplier gets a warning, its stake is deducted and paid to you, and after 3 warnings it is removed from the system.</p>
+            <p className="text-xs text-quiet">The admin decides. If approved, the supplier is warned and its stake is paid to you.</p>
             <div className="flex flex-wrap gap-2">
               <Button variant="danger" disabled={anyBusy || why.trim().length < 3} loading={flagBusy} onClick={() => { onFlag(why); setRejecting(false); setWhy(""); }}>Send to the admin</Button>
               <Button variant="ghost" onClick={() => { setRejecting(false); setWhy(""); }}>Cancel</Button>

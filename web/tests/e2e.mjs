@@ -20,9 +20,9 @@ const fmt = (n) => `${(n / 1e7).toLocaleString("en-US", { maximumFractionDigits:
 const bal = async (k) => fmt((await (await fetch(BASE + "/api/rpc", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fn: "contract.getBalances", args: [[ADDR[k]]] }) })).json()).data[0]);
 const go = async (path) => {
   await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1000);
-  if (path.startsWith("/admin")) await page.locator("summary", { hasText: "Test tools and logs" }).click().catch(() => {}); // the demo tools are folded away by default
 };
 const as = async (role) => { await page.selectOption('select[aria-label="You are"]:visible', role); await page.waitForTimeout(300); };
+const T = async (name) => { await page.getByRole("tab", { name: new RegExp("^" + name) }).click(); await page.waitForTimeout(600); }; // pages are split into tabs: open one
 const btn = (name, exact = false) => page.getByRole("button", { name, exact });
 const click = async (name, o = {}) => { await btn(name, o.exact)[o.last ? "last" : "first"]().click(); await page.waitForTimeout(o.wait ?? 1200); };
 const toast = async () => (await page.locator("[data-sonner-toast]").first().innerText().catch(() => "")).replace(/\s+/g, " ");
@@ -108,7 +108,7 @@ await go("/admin"); await as("admin"); await page.waitForSelector("text=Recommen
 ok("Gupta Wholesale + PayLink: approving needs no manual review", (await page.getByText("All automatic checks passed").count()) === 2);
 await page.locator("[data-application]", { hasText: "Recommend approve" }).getByRole("button", { name: "Approve", exact: true }).first().click(); await page.waitForTimeout(1400);
 await page.locator("[data-application]", { hasText: "Recommend approve" }).getByRole("button", { name: "Approve", exact: true }).first().click(); await page.waitForTimeout(1400);
-ok("two issuers in the registry", (await page.locator("table:has-text('Disputes upheld') tbody tr").count()) >= 2);
+await T("Issuers"); ok("two issuers in the registry", (await page.locator("#issuers tbody tr").count()) >= 2); await T("Applications");
 const q = page.locator("[data-application]", { hasText: "Recommend reject" }).first();
 await q.getByLabel(/Independent of the shops/).check();
 await q.getByRole("button", { name: "Save manual review" }).click(); await page.waitForTimeout(1200);
@@ -122,27 +122,27 @@ const approveQ = q.getByRole("button", { name: "Approve after manual review" });
 ok("approve unlocked after ticks + note", await approveQ.isEnabled());
 await shot("3-manual-review");
 await approveQ.click(); await page.waitForTimeout(1400);
-ok("3 issuers in the registry", (await page.locator("table:has-text('Disputes upheld') tbody tr").count()) >= 3);
+await T("Issuers"); ok("3 issuers in the registry", (await page.locator("#issuers tbody tr").count()) >= 3); await T("Applications");
 ok("no applications left waiting", await page.getByText("Applications to join (0 waiting)").isVisible());
 
 console.log("-- the rest of the flow still works");
 const issue = async (role, amount) => { await go("/issuer"); await as(role); if (amount) await page.locator('input[type="number"]').fill(String(amount)); await click("Sign and issue"); };
 await issue("gupta"); await issue("paylink"); await issue("selfdeal", 200000);
-ok("contract holds 90 USDC of stakes", (await bal("contract")) === "90 USDC", await bal("contract"));
-await go("/lender"); await as("asha"); await page.getByText("Check any shop").click(); await click("Verify (1 USDC)"); await page.waitForSelector("text=Where your fee went"); await page.waitForTimeout(1500);
-ok("no claim passed (no payment-app records yet): lender pays only the platform's 0.3", (await bal("asha")) === "999.7 USDC" && (await bal("admin")) === "0.3 USDC", await bal("asha"));
-ok("Anand Traders fails independence, with the shop's phone and bank account named", (await page.getByText("Shares the shop's phone and bank account, so it isn't independent.").count()) >= 1);
+ok("contract holds 60 USDC of stakes (3 x 20)", (await bal("contract")) === "60 USDC", await bal("contract"));
+await go("/lender"); await as("asha"); await page.getByText("Check any shop").click(); await click("Verify (5 USDC)"); await page.waitForSelector("[data-report]"); await page.waitForTimeout(1500);
+ok("no claim passed (no payment-app records yet): lender pays only the platform's 2.50", (await bal("asha")) === "997.5 USDC" && (await bal("admin")) === "2.5 USDC", await bal("asha"));
+await T("Six checks"); ok("Anand Traders fails independence, with the shop's phone and bank account named", (await page.getByText("Shares the shop's phone and bank account, so it isn't independent.").count()) >= 1);
 await click("Open dispute", { last: true });
-await click("Report a default");
+await T("Fee and default"); await click("Report a default");
 ok("the lender can report a default", (await toast()).includes("reported as defaulted"), (await toast()).slice(0, 60));
 ok("simulated transactions say so", (await toast()).includes("Simulated: not sent to Stellar"), (await toast()).slice(0, 90));
-await go("/admin"); await as("admin"); await click("Uphold and slash");
-ok("stake slashed to the lender", (await bal("asha")) === "1,029.7 USDC", await bal("asha"));
-ok("activity log lists request_issuer + reject_issuer", (await page.getByText("request_issuer").count()) >= 1 && (await page.getByText("reject_issuer").count()) >= 1);
+await go("/admin"); await as("admin"); await T("Disputes"); await click("Uphold and slash");
+ok("stake slashed to the lender", (await bal("asha")) === "1,017.5 USDC", await bal("asha"));
+await T("Tools and logs"); ok("activity log lists request_issuer + reject_issuer", (await page.getByText("request_issuer").count()) >= 1 && (await page.getByText("reject_issuer").count()) >= 1);
 
 console.log("-- the system log recorded everything above");
 await go("/admin"); await as("admin");
-await page.getByText("System log (").click(); await page.waitForTimeout(800);
+await T("Tools and logs"); await page.getByText("System log (").click(); await page.waitForTimeout(800);
 const logText = (await page.locator("details:has-text('System log') ul").innerText());
 ok("system log shows emails, wrong codes, applications, reviews", ["email_sent", "otp_wrong", "otp_locked", "application_submitted", "manual_review_saved", "request_signed"].every((e) => logText.includes(e)), logText.split("\n").slice(0, 3).join(" | "));
 ok("system log shows refused calls", logText.includes("rejected") && logText.includes("IssuerNotApproved"));
@@ -150,8 +150,8 @@ ok("log never shows a full email address or a code", !logText.includes("issuer1@
 
 console.log("-- Load demo still works through the application path");
 await go("/admin"); await as("admin");
-await click("Load demo", { wait: 4500 });
-ok("Load demo: 5 credentials staked, 30 USDC of it already slashed (Sunrise Mart)", (await bal("contract")) === "120 USDC", await bal("contract"));
+await T("Tools and logs"); await click("Load demo", { wait: 4500 });
+ok("Load demo: 5 credentials staked, 20 USDC of it already slashed (Sunrise Mart)", (await bal("contract")) === "80 USDC", await bal("contract"));
 await go("/issuer"); await as("gupta");
 ok("approved issuer sees the issue form, no application card", (await page.getByText("Join the issuer registry").count()) === 0);
 
@@ -168,12 +168,12 @@ ok("...acting as the lender", (await page.locator('select[aria-label="You are"]:
 ok("the banner says SIMULATED in demo mode (never claims real transactions)", (await page.getByText("simulated transactions (real ones linked in the README), test USDC, made-up shop data").first().isVisible()) && (await page.getByText("real Stellar testnet transactions").count()) === 0);
 await go("/lender"); await as("asha"); await page.waitForTimeout(800);
 ok("lender sees both demo loan requests", (await page.getByRole("button", { name: "Review" }).count()) === 2);
-ok("On-chain panel: contract linked to Stellar Expert (testnet)", (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG"]').count()) >= 1);
+await page.locator("summary", { hasText: "On-chain" }).click(); ok("On-chain panel: contract linked to Stellar Expert (testnet)", (await page.locator('a[href*="stellar.expert/explorer/testnet/contract/CBEGE446VFXBKELMBXSLQZGVX3QMCQJMKUU5MXIKK6CO2KF7C575CYDG"]').count()) >= 1);
 ok("On-chain panel: explains demo mode when the server has no keys", (await page.getByText("Demo mode", { exact: true }).isVisible()) && (await page.getByText(/runs the same rules without sending transactions/).isVisible()));
 await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
 ok("My shop opens with the public profile first, inline", (await page.getByText("Your public profile: this is what a lender sees").isVisible()) && (await page.getByRole("button", { name: "Reset the demo" }).isVisible()));
 await go("/lender"); await as("asha"); await page.waitForTimeout(1000);
-ok("On-chain panel: a read-only wallet button, optional", await page.getByRole("button", { name: /Connect wallet \(read-only\)/ }).isVisible());
+await page.locator("summary", { hasText: "On-chain" }).click(); ok("On-chain panel: a read-only wallet button, optional", await page.getByRole("button", { name: /Connect wallet \(read-only\)/ }).isVisible());
 await page.getByRole("button", { name: "Review" }).nth(1).click(); await page.waitForTimeout(600); // Sunrise Mart, the fake shop
 await click("Check the shop", { wait: 3500 });
 ok("case 2: fake shop says it needs an independent payment app, Unknown", await page.getByText("Needs an independent payment app. Unknown").first().isVisible());
@@ -183,7 +183,7 @@ await page.getByRole("button", { name: "Review" }).first().click(); await page.w
 await click("Check the shop", { wait: 3500 });
 ok("case 1: Sharma gets 'Recommend approve' and a limit", (await page.getByText("Recommend approve").first().isVisible()) && (await page.getByText("Approve: ₹20,000 is within the limit of ₹22,500").isVisible()));
 ok("cases 3 and 4: failed claims are named as not counted", (await page.getByText(/Not counted: QuickSupply: net flow failed/).first().isVisible()) && (await page.getByText(/Anand Traders: independence failed/).first().isVisible()));
-ok("each check shows its numbers and whose data it used", (await page.getByText(/Numbers: Claimed ₹1,50,000\/month/).count()) >= 1 && (await page.getByText(/Payment app PayLink/).count()) >= 1);
+await T("Six checks"); ok("each check shows its numbers and whose data it used", (await page.getByText(/Numbers: Claimed ₹1,50,000\/month/).count()) >= 1 && (await page.getByText(/Payment app PayLink/).count()) >= 1);
 ok("no stacking warning yet", (await page.getByText("Possible loan stacking").count()) === 0 || (await page.getByText("Possible loan stacking.").count()) === 0);
 await click("Demo: 2 other lenders also check this shop", { wait: 2500 });
 ok("case 5: stacking warning is shown", await page.getByText("Possible loan stacking.").first().isVisible());
@@ -196,11 +196,11 @@ ok("health shows no secrets", !JSON.stringify(health).includes("testtoken") && !
 
 const other = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
 await other.goto(BASE + "/admin"); await other.waitForTimeout(2500);
-await other.locator("summary", { hasText: "Test tools and logs" }).click().catch(() => {});
+await other.getByRole("tab", { name: /^Tools and logs/ }).click(); await other.waitForTimeout(500);
 const otherBal = async (k) => (await other.locator(`[data-balance="${k}"]`).first().innerText()).trim();
 ok("a different visitor sees the SAME data (shared cloud)", (await otherBal("contract")) === (await bal("contract")), `${await otherBal("contract")} vs ${await bal("contract")}`);
 const dateBefore = await other.getByText(/App date:/).innerText();
-await go("/admin"); await as("admin");
+await go("/admin"); await as("admin"); await T("Tools and logs");
 await click("30 days"); await page.waitForTimeout(500);
 let synced = false; for (let i = 0; i < 14 && !synced; i++) { await other.waitForTimeout(1000); synced = (await other.getByText(/App date:/).innerText()) !== dateBefore; }
 ok("the other visitor's screen updates by itself within seconds (no reload)", synced, `${dateBefore} -> ${await other.getByText(/App date:/).innerText()}`);
@@ -218,8 +218,9 @@ ok("after a wrong password the page asked again and reset worked", (await toast(
 ok("all balances back to the start", (await bal("asha")) === "1,000 USDC" && (await bal("contract")) === "0 USDC" && (await bal("admin")) === "0 USDC");
 ok("the activity log is back to the first transaction", await page.getByText("What the contract did (1 transaction)").isVisible());
 await go("/admin"); await as("admin");
-ok("applications and issuers are gone", (await page.getByText("Applications to join (0 waiting)").isVisible()) && (await page.getByText("No issuers yet").isVisible()));
-await page.getByText("System log (").click(); await page.waitForTimeout(600);
+const noApps = await page.getByText("Applications to join (0 waiting)").isVisible(); await T("Issuers");
+ok("applications and issuers are gone", noApps && (await page.getByText("No issuers yet").isVisible()));
+await T("Tools and logs"); await page.getByText("System log (").click(); await page.waitForTimeout(600);
 ok("the reset itself is in the log", (await page.locator("details:has-text('System log') ul").innerText()).includes("reset"));
 ok("the OTHER visitor's screen was reset too", await (async () => { for (let i = 0; i < 12; i++) { await other.waitForTimeout(1000); if ((await otherBal("contract")) === "0 USDC") return true; } return false; })());
 ok("the version number went up", (await (await fetch(BASE + "/api/version")).json()).version > before.version);
@@ -239,9 +240,9 @@ ok("and the code verifies", await page.getByText("Step 3 of 3").isVisible());
 console.log("-- admin shop checks: genuine, judging by the receipts");
 await go("/?reset=1"); await page.waitForTimeout(1500);
 await go("/admin"); await as("admin");
-await click("Load demo", { wait: 4500 });
+await T("Tools and logs"); await click("Load demo", { wait: 4500 });
 await go("/admin"); await as("admin"); await page.waitForTimeout(1500);
-await page.getByRole("link", { name: "Shop checks" }).click(); await page.waitForTimeout(800);
+await T("Shop checks");
 const shops = page.locator("#shops");
 await shops.getByText("Looks genuine").first().waitFor({ timeout: 15000 });
 ok("Sharma Store: 'Looks genuine'", await shops.getByText("Looks genuine").first().isVisible());
@@ -277,7 +278,7 @@ ok("each line says what was found and why it matters", (await inv("INV-GW-1051")
 await page.screenshot({ path: `${S}/onb-report.png`, fullPage: true });
 
 console.log("-- evidence: the shop answers (two-sided confirmation)");
-await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200); await T("To confirm");
 ok("Sharma sees one pending confirmation", await page.getByText("Pending transaction confirmations (1)").isVisible());
 const mine = page.locator('[data-invoice="INV-GW-1051"]');
 await mine.getByRole("button", { name: "Dispute", exact: true }).click(); await page.waitForTimeout(300);
@@ -290,35 +291,35 @@ const wrong = await rpcErr("backend.confirmInvoice", ["shop-2", 3]);
 ok("another business cannot answer Sharma's invoice (Forbidden)", wrong.ok === false && wrong.error.code === "Forbidden", JSON.stringify(wrong.error));
 const again = await rpcErr("backend.confirmInvoice", ["shop-1", 3]);
 ok("an answered claim cannot be answered again (AlreadyAnswered)", again.ok === false && again.error.code === "AlreadyAnswered", JSON.stringify(again.error));
-await as("mehta"); await page.waitForTimeout(800);
+await as("mehta"); await page.waitForTimeout(800); await T("To confirm");
 ok("Verma Kirana has nothing to confirm", await page.getByText("No supplier has submitted an invoice about your shop yet.").isVisible());
 
 console.log("-- evidence: the admin rules, issuer reliability moves");
 await go("/admin"); await as("admin"); await page.waitForTimeout(1500);
-const ev = page.locator("#evidence");
+await T("Evidence"); const ev = page.locator("#evidence");
 ok("admin sees the disputed and the rejected invoice", (await ev.innerText()).includes("INV-GW-1051") && (await ev.innerText()).includes("INV-QS-0731"));
-const cs = page.locator("#cases");
+await T("Cases"); const cs = page.locator("#cases");
 ok("both rejections opened a case for the admin (the shop's rejection and its dispute)", (await cs.innerText()).includes("Case 1") && (await cs.innerText()).includes("Case 2") && (await cs.innerText()).includes("Rejection cases (2 open)"));
 const pdfRes = await fetch(BASE + "/api/case/2/pdf");
 const pdfBytes = Buffer.from(await pdfRes.arrayBuffer());
 ok("the admin can download the case file as a real PDF", pdfRes.status === 200 && pdfRes.headers.get("content-type") === "application/pdf" && pdfBytes.subarray(0, 5).toString() === "%PDF-" && pdfBytes.toString("latin1").includes("MOSAIC case file #2"), `${pdfBytes.length} bytes`);
 ok("a case that does not exist has no PDF (404)", (await fetch(BASE + "/api/case/99/pdf")).status === 404);
-ok("the case says what approving would do", (await cs.locator('[data-case="2"]').innerText()).includes("stake is deducted") && (await cs.locator('[data-case="2"]').innerText()).includes("warning 1 of 3"));
-await cs.locator('[data-case="2"]').getByPlaceholder(/what did you check/).fill("Delivery note shows half the goods.");
+ok("the case says what approving would do", (await cs.locator('[data-case="2"]').innerText()).includes("stake deducted") && (await cs.locator('[data-case="2"]').innerText()).includes("warning 1 of 3"));
+await cs.locator('[data-case="2"]').getByPlaceholder(/Your note/).fill("Delivery note shows half the goods.");
 await cs.locator('[data-case="2"]').getByRole("button", { name: /Approve: deduct stake and warn/ }).click(); await page.waitForTimeout(2000);
 ok("approving saves the ruling, deducts the stake and warns the supplier", (await toast()).includes("Approved") && (await toast()).includes("Warning 1 of 3"), (await toast()).slice(0, 90));
-ok("the case now shows the ruling and the PDF link", (await cs.locator('[data-case="2"]').innerText()).includes("Ruling on") && (await cs.locator('[data-case="2"]').innerText()).includes("30 USDC deducted"));
-ok("Gupta Wholesale is now 'Under review' with the reason", await page.locator("#reliability").locator("tr", { hasText: "Gupta Wholesale" }).getByText("Under review").isVisible());
-ok("a new issuer is 'Limited history', never 'Established'", await page.locator("#reliability").locator("tr", { hasText: "PayLink" }).getByText("Limited history").isVisible());
+ok("the case now shows the ruling and the PDF link", (await cs.locator('[data-case="2"]').innerText()).includes("Ruling,") && (await cs.locator('[data-case="2"]').innerText()).includes("20 USDC deducted"));
+await T("Issuers"); ok("Gupta Wholesale is now 'Under review' with the reason", await page.locator("#issuers").locator("tr", { hasText: "Gupta Wholesale" }).getByText("Under review").isVisible());
+ok("a new issuer is 'Limited history', never 'Established'", await page.locator("#issuers").locator("tr", { hasText: "PayLink" }).getByText("Limited history").isVisible());
 
 console.log("-- a lender rejects a claim: it becomes another case");
 await go("/lender?shop=shop-1"); await as("asha"); await page.waitForTimeout(800);
 await click("Check the shop", { wait: 3000 });
-await page.getByRole("button", { name: "Reject this claim (wrong information)" }).last().click(); await page.waitForTimeout(300);
+await T("Six checks"); await page.getByRole("button", { name: "Reject this claim (wrong information)" }).last().click(); await page.waitForTimeout(300);
 await page.getByPlaceholder(/does not match the shop/).fill("The supplier shares the shop owner's phone number.");
 await click("Send to the admin", { wait: 1800 });
 ok("the lender's rejection is sent to the admin as a case", (await toast()).includes("Sent to the admin as case #3"), (await toast()).slice(0, 80));
-await go("/admin"); await as("admin"); await page.waitForTimeout(1500);
+await go("/admin"); await as("admin"); await T("Cases"); await page.waitForTimeout(500);
 ok("the admin sees it, with the lender named and the stake going to the lender", (await page.locator('[data-case="3"]').innerText()).includes("Saathi Microfinance") && (await page.locator('[data-case="3"]').innerText()).toLowerCase().includes("open"));
 
 console.log("-- supplier proof: monthly bills and 'is this really your supplier?'");
@@ -328,11 +329,11 @@ const gp = await page.locator('[data-proof="Gupta Wholesale"]').first().innerTex
 ok("the lender sees Gupta's supplier proof: six monthly bills, all matching the payments", gp.includes("6 of 7 checks passed") || gp.includes("7 of 7 checks passed"), gp.slice(0, 90).replace(/\s+/g, " "));
 const qp = (await page.locator('[data-proof="QuickSupply"]').first().innerText()).toLowerCase();
 ok("QuickSupply's proof is flagged: its Rs 1,50,000 bills are not backed by the money that stayed", qp.includes("not backed") && qp.includes("not uploaded"));
-await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200); await T("To confirm");
 ok("Sharma Store is asked 'Is this business your supplier?' (QuickSupply waiting)", await page.getByText("Is this business your supplier? (1 waiting)").isVisible());
 await page.locator('[data-supplier="QuickSupply"]').getByRole("button", { name: "Yes, they supply us" }).click(); await page.waitForTimeout(1800);
 ok("the shop confirms its supplier", (await toast()).includes("Confirmed"), (await toast()).slice(0, 70));
-await go("/issuer"); await as("gupta"); await page.waitForTimeout(1500);
+await go("/issuer"); await as("gupta"); await page.waitForTimeout(1500); await T("Proof");
 ok("the supplier sees 'Prove you supply this shop' with six months", await page.getByText("Prove you supply this shop").isVisible() && (await page.locator("[data-month]").count()) === 6);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mosaic-pdf-"));
 const goodPdf = path.join(tmp, "oct.pdf"); fs.writeFileSync(goodPdf, "%PDF-1.4\n" + "% a small test bill for the browser test\n".repeat(12) + "%%EOF\n");
@@ -357,10 +358,10 @@ const noFile = await fetch(BASE + "/api/statement", { method: "POST", body: new 
 ok("an upload with no file is refused (400)", noFile.status === 400);
 
 console.log("-- evidence: the issuer and payment-app screens");
-await go("/issuer"); await as("gupta"); await page.waitForTimeout(1200);
+await go("/issuer"); await as("gupta"); await page.waitForTimeout(1200); await T("Invoices");
 ok("supplier sees its invoices and track record", await page.getByText("Invoices for the shop to confirm").isVisible() && await page.getByText("Your track record").isVisible());
 ok("the supplier sees the shop's reason on a disputed invoice", await page.getByText(/only received half of the goods/).first().isVisible());
-await as("paylink"); await page.waitForTimeout(1200);
+await as("paylink"); await page.waitForTimeout(1200); await T("Payments");
 ok("payment app sees its payment records", await page.getByText("Payment records (the evidence invoices are matched against)").isVisible() && (await page.getByText("UPI/INV-GW-1051").count()) > 0);
 }
 
@@ -394,10 +395,10 @@ ok("people are grouped by what they do", ["Shopkeepers", "Suppliers and payment 
 
 console.log("-- the shopkeeper asks for a loan, the lender decides");
 await go("/?reset=1"); await page.waitForTimeout(1500);
-await go("/admin"); await as("admin"); await click("Load demo", { wait: 4500 });
+await go("/admin"); await as("admin"); await T("Tools and logs"); await click("Load demo", { wait: 4500 });
 await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1500);
 ok("Sharma Store: 'Lenders will see a genuine, active business'", await page.getByText("Lenders will see a genuine, active business").isVisible());
-ok("Gupta Wholesale + PayLink count, QuickSupply and Anand Traders don't", (await page.getByText("Counts", { exact: true }).count()) === 2 && (await page.getByText("Does not count", { exact: true }).count()) === 2);
+await T("Loan"); ok("Gupta Wholesale + PayLink count, QuickSupply and Anand Traders don't", (await page.getByText("Counts", { exact: true }).count()) === 2 && (await page.getByText("Does not count", { exact: true }).count()) === 2);
 ok("the demo's request is waiting", await page.getByText("Waiting for a lender").first().isVisible());
 await click("Withdraw", { wait: 1200 });
 ok("withdrawn", await page.getByText("Withdrawn").first().isVisible());
@@ -413,8 +414,8 @@ await go("/lender"); await as("asha"); await page.waitForTimeout(1200);
 ok("the lender sees the request", await page.getByText(/Sharma Store asks for ₹30,000/).isVisible());
 await click("Review", { exact: true, wait: 600 });
 const before2 = await bal("asha");
-await click("Check the shop (1 USDC)", { wait: 2500 });
-ok("checking cost the lender 1 USDC", before2 !== await bal("asha"), `${before2} -> ${await bal("asha")}`);
+await click("Check the shop (5 USDC)", { wait: 2500 });
+ok("checking cost the lender 5 USDC", before2 !== await bal("asha"), `${before2} -> ${await bal("asha")}`);
 ok("recommendation: approve up to ₹22,500", (await page.getByText("Recommend approve").isVisible()) && (await page.getByText("Approve up to ₹22,500 (they asked for ₹30,000).").isVisible()));
 ok("the rules explain the limit", await page.getByText(/Limit ₹22,500 = half of the lowest verified monthly figure/).isVisible());
 await page.screenshot({ path: `${S}/onb-lender-loan.png`, fullPage: true });
@@ -427,22 +428,22 @@ await page.getByLabel("Approve (₹)").fill("22500");
 await click("Approve ₹22,500", { wait: 1500 });
 ok("approved at the suggested limit", (await toast()).includes("Approved ₹22,500"), (await toast()).slice(0, 60));
 ok("it shows under recent decisions", await page.getByText(/Approved ₹22,500/).first().isVisible());
-await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200);
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1200); await T("Loan");
 ok("the shopkeeper sees 'Approved ₹22,500'", await page.getByText("Approved ₹22,500").isVisible());
 
 console.log("-- a new shop with no credentials");
 await go("/my-shop"); await as("mehta"); await page.waitForTimeout(1200);
 ok("Verma Kirana: 'Lenders can't judge you yet (that's not bad)'", await page.getByText("Lenders can't judge you yet, and that is not bad").isVisible());
-await page.getByLabel("What is it for?").fill("New fridge");
+await T("Loan"); await page.getByLabel("What is it for?").fill("New fridge");
 await page.getByLabel("How much").fill("10000");
 await click("Ask for ₹10,000", { wait: 1200 });
 await go("/lender"); await as("asha"); await page.waitForTimeout(1200);
-await click("Review", { exact: true, wait: 600 }); await click("Check the shop (1 USDC)", { wait: 2500 });
+await click("Review", { exact: true, wait: 600 }); await click("Check the shop (5 USDC)", { wait: 2500 });
 ok("lender: 'Not enough evidence'", await page.getByText("Not enough evidence", { exact: true }).isVisible());
 await click("Decline", { wait: 1500 });
-await go("/my-shop"); await as("mehta"); await page.waitForTimeout(1200);
+await go("/my-shop"); await as("mehta"); await page.waitForTimeout(1200); await T("Loan");
 ok("Verma Kirana sees 'Declined'", await page.getByText("Declined").first().isVisible());
-await go("/admin"); await as("admin"); await page.getByText("System log (").click(); await page.waitForTimeout(600);
+await go("/admin"); await as("admin"); await T("Tools and logs"); await page.getByText("System log (").click(); await page.waitForTimeout(600);
 const lg = await page.locator("details:has-text('System log') ul").innerText();
 ok("loan requests and decisions are in the system log", ["loan_requested", "loan_withdrawn", "loan_approved", "loan_declined"].every((e) => lg.includes(e)));
 
@@ -452,7 +453,7 @@ await go("/");
 ok("home shows the pitch headline", await page.getByText("shouldn't need a credit history").first().isVisible());
 ok("home says missing evidence is unknown, never bad", await page.getByText("Missing evidence means unknown, never bad.").isVisible());
 ok("no emoji or ASCII arrows in the visible text", !/[\u{1F300}-\u{1FAFF}\u2705\u2713\u2714\u2716\u2192\u2190\u21BB]/u.test(await page.locator("body").innerText()));
-await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1500);
+await go("/my-shop"); await as("sharma"); await page.waitForTimeout(1500); await T("Loan");
 ok("loan amounts show a rough Canadian-dollar equivalent", /about CA\$\d/.test(await page.locator("body").innerText()));
 ok("dates use the Canadian style (Nov 11, 2026)", /[A-Z][a-z]{2} \d{1,2}, 2026/.test(await page.locator("body").innerText()));
 const fontOk = await page.evaluate(() => getComputedStyle(document.body).fontFamily.toLowerCase().includes("inter"));

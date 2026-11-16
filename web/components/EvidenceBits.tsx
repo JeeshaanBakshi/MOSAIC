@@ -38,4 +38,4 @@ export function moneyLine(m: { effectiveAmount: number; matchedAmount: number; m
 }
 
 /** What is on Stellar and what is not, said once, in the same words everywhere. */
-export const OFFCHAIN_NOTE = "Invoice claims, confirmations and matching are kept by the MOSAIC backend, off-chain. Only the supplier's credential is on Stellar testnet.";
+export const OFFCHAIN_NOTE = "Kept off-chain by MOSAIC. Only the credential is on Stellar.";

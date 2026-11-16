@@ -34,10 +34,10 @@ Check a deployment at `/api/health`: it shows storage, email, whether the reset 
 ## Folder map
 
 ```
-app/            pages: / (landing), my-shop, issuer, lender, admin, shop/[id]; api/ (health, reset, rpc, version)
-components/     UI pieces (Shell, ui, OnChainPanel, TxRef, CheckList, TrustGraph, ...)
-lib/engine/     the contract simulation + rules: contract.ts, backend.ts, rules.ts, loans.ts, onboarding.ts, demo.ts, data.ts
-lib/server/     chain.ts (testnet bridge), storage.ts (Redis), email.ts, log.ts
+app/            pages: / (landing), my-shop, issuer, lender, admin, chain (testnet inspector), shop/[id]; api/ (health, reset, rpc, version, chain, case/[id]/pdf, statement)
+components/     UI pieces (Shell, ui, Tabs, OnChainPanel, CaseFiles, SupplierProof, VerificationReport, TrustGraph, ...)
+lib/engine/     the contract simulation + rules: contract.ts, backend.ts, rules.ts, evidence.ts, invoices.ts, cases.ts, statements.ts, loans.ts, onboarding.ts, demo.ts, data.ts
+lib/server/     chain.ts (testnet bridge), chainState.ts (live chain reads), storage.ts (Redis + file store), pdf.ts, email.ts, log.ts
 lib/mock/       the browser's client for the server (the pages only talk to this)
 lib/            small helpers: format, session, checks, lender, hooks, useChainMode
 tests/          engine tests (*.test.ts), cloud stand-ins, browser test (e2e.mjs)

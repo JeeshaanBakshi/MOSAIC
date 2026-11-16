@@ -105,7 +105,7 @@ async function loadDemoSimulated() {
     await addIssuer(admin.address, a.address, a.name, a.kind!);
   }
 
-  // 2. Each issuer signs a claim and locks 30 USDC.
+  // 2. Each issuer signs a claim and locks the stake (20 USDC).
   //    Sharma Store (Sharma): honest supplier + payment app, a round-tripping supplier, a self-dealing supplier.
   //    Sunrise Mart: listed and vouched for by QuickSupply alone, with no payment-app records.
   const claims = [
@@ -126,7 +126,7 @@ async function loadDemoSimulated() {
   await syncChecks("shop-3");
 
   // Shop 3's only voucher, QuickSupply, was proven wrong: after the shop defaulted, a lender's dispute was upheld and the
-  // 30 USDC stake was paid out. The real testnet contract shows the same, so the page and the On-chain panel agree.
+  // 20 USDC stake was paid out. The real testnet contract shows the same, so the page and the On-chain panel agree.
   patchState((s) => { s.verifiers["shop-3"] = ["lender-2"]; s.defaults["shop-3"] = s.now; });
   const fakeCred = (await getCredentials("shop-3"))[0].credential.id;
   const dispute = await openDispute("lender-2", fakeCred);

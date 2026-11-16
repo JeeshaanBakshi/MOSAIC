@@ -16,8 +16,8 @@ resetEverything().then(() => withState(async () => {
   console.log("-- demo flow");
   await demo.loadDemo();
   ok("4 credentials on shop-1 (Sharma) + 1 on shop-3", (await c.getCredentials("shop-1")).length === 4 && (await c.getCredentials("shop-3")).length === 1);
-  ok("stakes locked: contract holds 120 (5 credentials x 30, minus the 30 slashed on Sunrise Mart)", (await c.getBalance((await import("../lib/engine/accounts")).CONTRACT_ADDRESS)) / U === 120);
-  ok("gupta 970", (await bal("gupta")) === 970);
+  ok("stakes locked: contract holds 80 (5 credentials x 20, minus the 20 slashed on Sunrise Mart)", (await c.getBalance((await import("../lib/engine/accounts")).CONTRACT_ADDRESS)) / U === 80);
+  ok("gupta 980", (await bal("gupta")) === 980);
 
   console.log("-- backend checks 2-4");
   const ev = await b.getChecks("shop-1");
@@ -32,10 +32,10 @@ resetEverything().then(() => withState(async () => {
 
   console.log("-- verify: fee split");
   const v = await c.verify(A.asha.address, "shop-1");
-  ok("the 2 issuers whose claims passed get 0.35 each", v.result.payouts.slice(0, 2).every((p) => p.amount === 3_500_000), JSON.stringify(v.result.payouts.map((p) => p.amount / U)));
+  ok("the 2 issuers whose claims passed get 1.25 each (half of the 5 USDC fee, shared)", v.result.payouts.slice(0, 2).every((p) => p.amount === 12_500_000), JSON.stringify(v.result.payouts.map((p) => p.amount / U)));
   ok("QuickSupply and Anand Traders (failed checks) earn nothing", v.result.payouts.length === 3 && v.result.payouts.every((p) => p.to !== A.quick.address && p.to !== A.selfdeal.address));
-  ok("platform gets remainder 0.30", Math.abs((await bal("admin")) - 0.3) < 1e-6, String(await bal("admin")));
-  ok("lender paid exactly 1", (await bal("asha")) === 999);
+  ok("platform gets the other half, 2.50", Math.abs((await bal("admin")) - 2.5) < 1e-6, String(await bal("admin")));
+  ok("lender paid exactly 5", (await bal("asha")) === 995);
   ok("stacking counter = 1", v.result.checksLast30Days === 1);
   await c.verify(A.asha.address, "shop-1");
   ok("stacking counter = 2", (await c.checksLast30Days("shop-1")) === 2);
@@ -52,7 +52,7 @@ resetEverything().then(() => withState(async () => {
   ok("the shop is now recorded as defaulted", await c.hasDefaulted("shop-1"));
   const before = await bal("asha");
   await c.resolveDispute(A.admin.address, d1.result, true);
-  ok("stake slashed to lender (+30)", (await bal("asha")) - before === 30);
+  ok("stake slashed to lender (+20)", (await bal("asha")) - before === 20);
   ok("credential revoked, stake 0", (await c.getCredentials("shop-1")).find((x) => x.credential.id === quickCred)!.status === "Revoked");
   ok("QuickSupply has 2 strikes (one from the demo's Sunrise Mart slash) and is suspended", (await c.getIssuer(A.quick.address))!.upheldClaims === 2 && !(await c.getIssuer(A.quick.address))!.active);
   await throws("resolved dispute can't be resolved again", "DisputeAlreadyResolved", () => c.resolveDispute(A.admin.address, d1.result, true));
@@ -69,10 +69,10 @@ resetEverything().then(() => withState(async () => {
   ok("expired after +91 days", (await c.getCredentials("shop-1")).find((x) => x.credential.id === g)!.status === "Expired");
   const gb = await bal("gupta");
   await c.releaseStake(A.gupta.address, g);
-  ok("stake returned (+30)", (await bal("gupta")) - gb === 30);
+  ok("stake returned (+20)", (await bal("gupta")) - gb === 20);
   await throws("no stake left after release", "NoStakeLeft", () => c.releaseStake(A.gupta.address, g));
   const v3 = await c.verify(A.asha.address, "shop-1");
-  ok("no earning issuers -> lender pays only the platform share (0.30)", v3.result.payouts.length === 1 && v3.result.payouts[0].amount === Math.round(0.3 * U));
+  ok("no earning issuers -> lender pays only the platform share (2.50)", v3.result.payouts.length === 1 && v3.result.payouts[0].amount === Math.round(2.5 * U));
 
   console.log("-- only claims backed by evidence earn fees");
   const claim = "Regular buyer for 12 months, buys ₹45,000 a month, pays on time";
@@ -90,7 +90,7 @@ resetEverything().then(() => withState(async () => {
   await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(40000));
   ok("payment-app records back the claim -> passed", await passedOf());
   const v5 = await c.verify(A.asha.address, "shop-2");
-  ok("passed -> issuer earns the whole 70%", v5.result.payouts[0].to === A.gupta.address && v5.result.payouts[0].amount === Math.round(0.7 * U));
+  ok("passed -> issuer earns the whole issuers' half (2.50)", v5.result.payouts[0].to === A.gupta.address && v5.result.payouts[0].amount === Math.round(2.5 * U));
   await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(5000));
   ok("thin payment-app records -> no longer passed", !(await passedOf()));
   await b.submitPaymentFeed(A.paylink.address, "shop-2", feedOf(40000, 38000));
@@ -111,12 +111,12 @@ resetEverything().then(() => withState(async () => {
   console.log("-- failed tx changes nothing");
   const snapshot = await c.getBalance(A.paylink.address);
   let code = "";
-  for (let i = 0; i < 40 && !code; i++) {            // PayLink keeps staking 30 USDC until the money runs out
+  for (let i = 0; i < 80 && !code; i++) {            // PayLink keeps staking 20 USDC until the money runs out
     try { await c.issueCredential(A.paylink.address, "shop-2", `claim${i}`, "Rs 50,000/month", hash); } catch (e) { code = (e as ContractError).code; }
   }
   ok("ran out of money -> InsufficientBalance", code === "InsufficientBalance", code);
   const left = await c.getBalance(A.paylink.address);
-  ok("failed call left the balance untouched (still enough for 0 more stakes)", left < 30 * U && left >= 0, String(left / U));
+  ok("failed call left the balance untouched (still enough for 0 more stakes)", left < 20 * U && left >= 0, String(left / U));
   void snapshot;
   ok("asha untouched by all of that", (await c.getBalance(A.asha.address)) > 0);
   ok("unknown shop -> no credentials (Unknown, not bad)", (await c.getCredentials("never-seen-shop")).length === 0);

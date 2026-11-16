@@ -36,11 +36,13 @@ export const CHECK_LABELS: Record<number, string> = {
 };
 
 export async function loadEvidence(shopId: string): Promise<EvidenceItem[]> {
-  const [views, evaluated, stacking] = await Promise.all([
+  const [views, evaluated, stacking, config] = await Promise.all([
     contract.getCredentials(shopId),
     backend.getChecks(shopId).catch(() => null), // if the backend is down, checks 2-4 become "unknown"
     contract.checksLast30Days(shopId),
+    contract.getConfig(),
   ]);
+  const requiredStake = config.stakeAmount;
   const issuers = await Promise.all(views.map((v) => contract.getIssuer(v.credential.issuer)));
 
   return views.map((view, i) => {
@@ -58,7 +60,7 @@ export async function loadEvidence(shopId: string): Promise<EvidenceItem[]> {
     };
     const check5: CheckRow = {
       check: 5, label: CHECK_LABELS[5], source: "Contract (on-chain stake)",
-      numbers: `Stake locked ${usdc(cred.stake)} · required 30 USDC`,
+      numbers: `Stake locked ${usdc(cred.stake)} · required ${usdc(requiredStake)}`,
       result: cred.stake > 0 ? "pass" : "unknown",
       reason: cred.stake > 0 ? `${usdc(cred.stake)} locked behind this claim. It goes to the lender if the claim is proven false.`
         : "No stake left (returned after expiry, or already slashed).",
@@ -71,7 +73,7 @@ export async function loadEvidence(shopId: string): Promise<EvidenceItem[]> {
       check: 6, label: CHECK_LABELS[6], source: "Contract (on-chain counter, all lenders)",
       result: stacking >= STACKING_ALERT ? "fail" : "pass",
       reason: stacking >= STACKING_ALERT ? `${stacking} lenders checked this shop in 30 days. Possible loan stacking: be careful.` : `${stacking} lender check(s) in the last 30 days. Normal.`,
-      numbers: `${stacking} check(s) in 30 days · warning at ${STACKING_ALERT}`,
+      numbers: `${stacking} check(s) in 30 days · warning at ${STACKING_ALERT} · counts checks, not distinct lenders`,
     };
 
     const rows = [check1, ...middle, check5, check6];

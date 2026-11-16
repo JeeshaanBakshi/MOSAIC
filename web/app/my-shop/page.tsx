@@ -18,6 +18,7 @@ import { LoadDemoButton } from "@/components/LoadDemoButton";
 import { ShopView } from "@/app/shop/[id]/ShopView";
 import { ShopConfirmations } from "@/components/ShopConfirmations";
 import { SupplierLinks } from "@/components/SupplierLinks";
+import { TabPanel, Tabs } from "@/components/Tabs";
 import { toast } from "sonner";
 
 export default function MyShopPage() {
@@ -56,6 +57,10 @@ function ShopDashboard({ shopId }: { shopId: string }) {
   const loans = useQuery(() => backend.listLoans({ shopId }), [shopId]);
   const checks30 = useQuery(() => contract.checksLast30Days(shopId), [shopId]);
 
+  const invoices = useQuery(() => backend.getInvoices({ shopId }), [shopId]);
+  const links = useQuery(() => backend.getSupplierLinks({ shopId }), [shopId]);
+  const [tab, setTab] = useState<"profile" | "confirm" | "loan">("profile");
+  const toConfirm = (invoices.data ?? []).filter((v) => v.state === "pending" && !v.claim.cancelled).length + (links.data ?? []).filter((l) => l.status === "pending").length;
   const [amount, setAmount] = useState(20000);
   const [amountText, setAmountText] = useState("20000"); // what is typed in the box (digits only, no leading zeros)
   const [months, setMonths] = useState(6);
@@ -87,29 +92,42 @@ function ShopDashboard({ shopId }: { shopId: string }) {
         <LoadDemoButton />
       </div>
 
-      <ShopView id={shopId} embedded />
+      <Tabs label="My shop sections" active={tab} onChange={setTab} tabs={[
+        { id: "profile", label: "Profile" },
+        { id: "confirm", label: "To confirm", count: toConfirm },
+        { id: "loan", label: "Loan" },
+      ]} />
 
-      <section className="grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="max-w-xl">
-          {r ? (
-            <>
-              <Badge state={STANDING[r.verdict].state}>{STANDING[r.verdict].word}</Badge>
-              <h2 className="mt-4 text-2xl font-light leading-snug tracking-tight">{STANDING[r.verdict].title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-quiet">
-                {r.verdict === "not_enough_evidence"
-                  ? "Ask the businesses you work with, your supplier and your payment app, to vouch for you on Mosaic. Two of them are enough."
-                  : r.verdictReason}
-              </p>
-            </>
-          ) : <Skeleton className="block h-24 w-full" />}
-        </div>
-        <Stat label="Lender checks in the last 30 days" value={checks30.data === undefined ? <Skeleton /> : String(checks30.data)} />
-      </section>
+      <TabPanel id="profile" active={tab}>
+        <ShopView id={shopId} embedded />
 
-      <SupplierLinks shopId={shopId} />
+        <section className="grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="max-w-xl">
+            {r ? (
+              <>
+                <Badge state={STANDING[r.verdict].state}>{STANDING[r.verdict].word}</Badge>
+                <h2 className="mt-4 text-2xl font-light leading-snug tracking-tight">{STANDING[r.verdict].title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-quiet">
+                  {r.verdict === "not_enough_evidence"
+                    ? "Ask your supplier and your payment app to vouch for you."
+                    : r.verdictReason}
+                </p>
+              </>
+            ) : <Skeleton className="block h-24 w-full" />}
+          </div>
+          <Stat label="Lender checks in the last 30 days" hint="Counts checks, not distinct lenders." value={checks30.data === undefined ? <Skeleton /> : String(checks30.data)} />
+        </section>
 
-      <ShopConfirmations shopId={shopId} />
+      </TabPanel>
 
+      <TabPanel id="confirm" active={tab}>
+        <SupplierLinks shopId={shopId} />
+
+        <ShopConfirmations shopId={shopId} />
+
+      </TabPanel>
+
+      <TabPanel id="loan" active={tab}>
       <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
         <Panel className="space-y-6 self-start">
           <h2 className="text-lg font-medium tracking-tight">Ask for a loan</h2>
@@ -140,7 +158,7 @@ function ShopDashboard({ shopId }: { shopId: string }) {
                 <p className="rounded-(--radius-control) bg-wash px-4 py-4 text-sm leading-relaxed text-quiet">
                   {estimate.data.outcome === "approve" && <>Based on your verified records, lenders&apos; checks suggest up to <b className="font-medium text-ink">{money(estimate.data.limitInr)}</b>.{amount > estimate.data.limitInr && " You can still ask for more, but expect less."}</>}
                   {estimate.data.outcome === "review" && <>A lender will look at your request by hand. Their checks suggest up to <b className="font-medium text-ink">{money(estimate.data.limitInr)}</b>.</>}
-                  {estimate.data.outcome === "not_enough_evidence" && <>There isn&apos;t enough evidence yet for lenders to suggest an amount. You can still ask, and a lender may decide by hand.</>}
+                  {estimate.data.outcome === "not_enough_evidence" && <>Not enough evidence for a suggested amount yet. You can still ask.</>}
                 </p>
               )}
               <Button onClick={ask} disabled={busy !== null || !amount || purpose.trim().length < 3} className="w-full">
@@ -190,6 +208,7 @@ function ShopDashboard({ shopId }: { shopId: string }) {
           ))}
         </Rows>
       </Section>
+      </TabPanel>
     </div>
   );
 }

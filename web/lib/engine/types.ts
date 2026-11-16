@@ -63,7 +63,7 @@ export interface Config {
   admin: string;
   usdc: string; // address of the USDC token contract
   verifyFee: number; // what a lender pays per verify
-  issuerShareBps: number; // share of the fee that goes to issuers, in basis points (7000 = 70%)
+  issuerShareBps: number; // share of the fee that goes to issuers, in basis points (5000 = 50%)
   stakeAmount: number; // what an issuer locks per credential
 }
 

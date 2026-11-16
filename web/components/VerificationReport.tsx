@@ -28,7 +28,7 @@ export function VerificationReport({ shopId }: { shopId: string }) {
     <section className="space-y-6" aria-label="Verification report" data-report={shopId}>
       <div>
         <h3 className="text-lg font-medium tracking-tight">Verification report</h3>
-        <p className="mt-1 max-w-2xl text-sm text-quiet">A signature shows who made a claim. It does not show the claim is true. This report looks at the evidence behind each credential: the business&apos;s answer, the invoice against the payments, how old it is, and the issuer&apos;s history.</p>
+        <p className="mt-1 text-sm text-quiet">A signature shows who made a claim, not that it is true. This is the evidence behind each credential.</p>
       </div>
       {creds.length === 0 && <p className="text-sm text-quiet">No credentials for this shop yet. That is unknown, not bad.</p>}
       {creds.map((c) => <CredentialReport key={c.credentialId} c={c} />)}
@@ -104,7 +104,7 @@ function CredentialReport({ c }: { c: ReportCredential }) {
           <div className="mt-2 space-y-4">
             <ProofMonths months={c.proof.months} statements={c.proof.statements} />
             <ProofLines lines={c.proof.lines} />
-            <p className="text-xs text-quiet">The bill PDFs are stored for a person to open. Their text is not read yet; the totals typed in are checked against the payment records. Off-chain.</p>
+            <p className="text-xs text-quiet">PDF text is not read yet; the typed totals are checked against payments.</p>
           </div>
         </details>
       )}

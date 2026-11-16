@@ -40,7 +40,7 @@ function Reliability({ me }: { me: string }) {
   );
 }
 
-function SupplierInvoices({ me, credentials }: { me: string; credentials: CredentialView[] }) {
+export function SupplierInvoices({ me, credentials }: { me: string; credentials: CredentialView[] }) {
   const shops = useQuery(() => backend.getShops());
   const now = useQuery(() => contract.getNow());
   const invoices = useQuery(() => backend.getInvoices({ issuer: me }), [me]);
@@ -75,7 +75,7 @@ function SupplierInvoices({ me, credentials }: { me: string; credentials: Creden
       <div className="space-y-8">
         <Reliability me={me} />
         <Panel className="space-y-6">
-          <p className="text-sm text-quiet">Attach an invoice to one of your credentials. The shop is asked to confirm it. A signed credential only proves <i>you</i> said it; the shop&apos;s confirmation and matching payments show it happened.</p>
+          <p className="text-sm text-quiet">Attach an invoice to a credential. The shop confirms it, and matching payments back it up.</p>
           {usable.length === 0 ? <p className="text-sm text-quiet">Issue a credential first, then attach invoices to it.</p> : (
             <>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -143,7 +143,7 @@ function InvoiceRow({ v, actions }: { v: InvoiceView; actions: React.ReactNode }
   );
 }
 
-function PaymentRecords({ me }: { me: string }) {
+export function PaymentRecords({ me }: { me: string }) {
   const shops = useQuery(() => backend.getShops());
   const now = useQuery(() => contract.getNow());
   const records = useQuery(() => backend.getPaymentRecords({ provider: me }), [me]);
@@ -165,7 +165,7 @@ function PaymentRecords({ me }: { me: string }) {
     <Section title="Payment records (the evidence invoices are matched against)">
       <div className="space-y-8">
         <Panel className="space-y-6">
-          <p className="text-sm text-quiet">Record one payment you saw. If its reference quotes a supplier&apos;s invoice number, MOSAIC matches it to that invoice. In a real product this is a consented feed from your payment system, not a form.</p>
+          <p className="text-sm text-quiet">Record a payment you saw. A reference that quotes an invoice number links it to that invoice.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Who paid"><select className={inputClass} value={shopId} onChange={(e) => setShopId(e.target.value)}>{(shops.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             <Field label="Account that was paid" hint="The supplier's verified account."><input className={inputClass} value={account} onChange={(e) => setAccount(e.target.value)} placeholder="ICIC-0009012-11122233" /></Field>

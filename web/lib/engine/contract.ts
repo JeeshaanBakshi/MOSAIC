@@ -353,7 +353,7 @@ export async function verify(lender: string, shopId: string): Promise<Tx<VerifyR
       if (v.status === "Valid" && v.credential.passed && !payees.includes(v.credential.issuer)) payees.push(v.credential.issuer);
     }
 
-    // Example: fee 1 USDC, 70% share, 2 issuers -> 0.35 each, 0.30 to the platform (admin).
+    // Example: fee 5 USDC, 50% share, 2 issuers -> 1.25 each, 2.5 to the platform (admin).
     const pool = Math.floor((s.config.verifyFee * s.config.issuerShareBps) / BPS);
     const each = payees.length ? Math.floor(pool / payees.length) : 0;
     const payouts: Payout[] = [];
